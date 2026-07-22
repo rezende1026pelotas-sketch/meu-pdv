@@ -3,10 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Meu PDV</title>
+<title>Meu PDV — Sistema de Gestão</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Spline+Sans+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <style>
 :root{
   --bg:#0f1318; --surface:#171d24; --surface2:#1e252e; --surface3:#252e39;
@@ -57,6 +61,30 @@ input,select{font-family:inherit}
 .view{flex:1;min-height:0;overflow:auto;padding:16px}
 .view::-webkit-scrollbar{width:10px;height:10px}
 .view::-webkit-scrollbar-thumb{background:var(--line2);border-radius:8px}
+
+
+/* ---------- Auth screens ---------- */
+.auth-screen{display:flex;align-items:center;justify-content:center;height:100vh;padding:20px}
+.auth-box{background:var(--surface);border:1px solid var(--line);border-radius:18px;width:100%;max-width:440px;padding:40px 32px;box-shadow:var(--shadow)}
+.auth-box .logo{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.auth-box .logo .dot{width:44px;height:44px;border-radius:13px;background:linear-gradient(135deg,var(--accent),#ff9d5c);display:grid;place-items:center;font-size:22px;color:#1a1005;font-weight:800}
+.auth-box .logo span{font-size:26px;font-weight:800;letter-spacing:-.02em}
+.auth-box .sub{color:var(--muted);font-size:14px;margin-bottom:28px}
+.auth-box .finput{margin-bottom:14px}
+.auth-box .auth-btn{width:100%;padding:16px;background:var(--accent);color:#1a1005;font-weight:800;font-size:16px;border-radius:var(--r2);margin-top:4px}
+.auth-box .auth-btn:hover{filter:brightness(1.06)}
+.auth-box .auth-btn:disabled{opacity:.5;cursor:not-allowed}
+.auth-box .switch{text-align:center;margin-top:18px;color:var(--muted);font-size:14px}
+.auth-box .switch a{color:var(--accent);font-weight:700;cursor:pointer}
+.auth-box .err{color:var(--danger);font-size:13px;margin:8px 0;min-height:18px}
+.topbar .user-info{margin-left:auto;display:flex;align-items:center;gap:10px}
+.topbar .user-info .empresa{font-size:13px;font-weight:600;color:var(--text)}
+.topbar .user-info .email{font-size:11px;color:var(--faint)}
+.topbar .logout{color:var(--muted);font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-weight:600}
+.topbar .logout:hover{background:var(--surface2);color:var(--danger)}
+.loading-screen{display:flex;align-items:center;justify-content:center;height:100vh;color:var(--muted);font-size:16px;flex-direction:column;gap:14px}
+.spinner{width:36px;height:36px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 
 /* ---------- Home tiles ---------- */
 .home{display:grid;grid-template-columns:1.25fr 2fr;gap:14px;height:100%}
@@ -288,12 +316,16 @@ label.fl{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
 </style>
 </head>
 <body>
-<div class="app">
+<div id="authContainer"></div>
+<div class="app" id="appContainer" style="display:none">
   <div class="topbar">
     <div class="brand"><span class="dot">P</span><span id="brandName">Meu PDV</span></div>
     <div class="clock"><b id="clkDate"></b><span id="clkTime"></span></div>
     <div class="center" id="screenName">Início</div>
-    <div class="pill"><span class="live"></span>Caixa aberto</div>
+    <div class="user-info" id="userInfo">
+      <div><div class="empresa" id="userEmpresa"></div><div class="email" id="userEmail"></div></div>
+      <button class="logout" onclick="doLogout()">Sair</button>
+    </div>
   </div>
   <div id="banner"></div>
   <div class="view" id="view"></div>
@@ -303,11 +335,155 @@ label.fl{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
 <div id="printArea"></div>
 
 <script>
-/* ============ Persistência ============ */
-const store = {
-  save(){ try{ localStorage.setItem('meu_pdv_db', JSON.stringify(db)); }catch(e){ window.__db = db; } },
-  load(){ try{ const s = localStorage.getItem('meu_pdv_db'); return s?JSON.parse(s):null; }catch(e){ return window.__db||null; } }
+/* ============ Firebase Init ============ */
+const firebaseConfig = {
+  apiKey: "AIzaSyAhdI4ITjMUQSgZmB-7_U5qUG9E49S4vE0",
+  authDomain: "meu-pdv-edurado-rezende.firebaseapp.com",
+  projectId: "meu-pdv-edurado-rezende",
+  storageBucket: "meu-pdv-edurado-rezende.firebasestorage.app",
+  messagingSenderId: "433070159726",
+  appId: "1:433070159726:web:0aaafe5074d9b19ca3f37f"
 };
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const fsdb = firebase.firestore();
+let currentUser = null;
+
+/* ============ Persistência (Firestore) ============ */
+let saveTimer = null;
+const store = {
+  save(){
+    if(!currentUser) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(()=>{
+      fsdb.collection('empresas').doc(currentUser.uid).set({dados: JSON.stringify(db)},{merge:true})
+        .catch(e=>console.error('Erro ao salvar:',e));
+    }, 800); // debounce de 800ms
+  },
+  async load(){
+    if(!currentUser) return null;
+    try{
+      const doc = await fsdb.collection('empresas').doc(currentUser.uid).get();
+      if(doc.exists && doc.data().dados) return JSON.parse(doc.data().dados);
+      return null;
+    }catch(e){console.error('Erro ao carregar:',e);return null;}
+  }
+};
+
+/* ============ Autenticação ============ */
+function showLoading(msg){
+  document.getElementById('authContainer').innerHTML=
+    `<div class="loading-screen"><div class="spinner"></div>${msg||'Carregando...'}</div>`;
+  document.getElementById('authContainer').style.display='block';
+  document.getElementById('appContainer').style.display='none';
+}
+function showLogin(){
+  document.getElementById('appContainer').style.display='none';
+  document.getElementById('authContainer').style.display='block';
+  document.getElementById('authContainer').innerHTML=`
+    <div class="auth-screen"><div class="auth-box">
+      <div class="logo"><span class="dot">P</span><span>Meu PDV</span></div>
+      <div class="sub">Sistema de gestão e vendas. Faça login para acessar.</div>
+      <div class="err" id="authErr"></div>
+      <label class="fl">E-mail</label>
+      <input class="finput" id="authEmail" type="email" placeholder="seu@email.com">
+      <label class="fl">Senha</label>
+      <input class="finput" id="authPass" type="password" placeholder="Sua senha">
+      <button class="auth-btn" onclick="doLogin()">Entrar</button>
+      <div class="switch">Não tem conta? <a onclick="showRegister()">Criar conta</a></div>
+    </div></div>`;
+  setTimeout(()=>{const i=document.getElementById('authEmail');if(i)i.focus()},100);
+}
+function showRegister(){
+  document.getElementById('authContainer').innerHTML=`
+    <div class="auth-screen"><div class="auth-box">
+      <div class="logo"><span class="dot">P</span><span>Meu PDV</span></div>
+      <div class="sub">Crie a conta da sua empresa. Cada empresa tem seus dados separados.</div>
+      <div class="err" id="authErr"></div>
+      <label class="fl">Nome da empresa / estabelecimento</label>
+      <input class="finput" id="regEmpresa" placeholder="Ex.: Lanchonete do João">
+      <label class="fl">E-mail</label>
+      <input class="finput" id="regEmail" type="email" placeholder="seu@email.com">
+      <label class="fl">Senha (mínimo 6 caracteres)</label>
+      <input class="finput" id="regPass" type="password" placeholder="Crie uma senha">
+      <label class="fl">Confirmar senha</label>
+      <input class="finput" id="regPass2" type="password" placeholder="Repita a senha">
+      <button class="auth-btn" onclick="doRegister()">Criar conta</button>
+      <div class="switch">Já tem conta? <a onclick="showLogin()">Fazer login</a></div>
+    </div></div>`;
+  setTimeout(()=>{const i=document.getElementById('regEmpresa');if(i)i.focus()},100);
+}
+function authError(msg){
+  const el=document.getElementById('authErr');if(el)el.textContent=msg;
+}
+function firebaseErrorPT(code){
+  const m={'auth/email-already-in-use':'Este e-mail já está cadastrado.',
+    'auth/invalid-email':'E-mail inválido.','auth/weak-password':'Senha muito fraca (mínimo 6 caracteres).',
+    'auth/user-not-found':'Nenhuma conta encontrada com este e-mail.',
+    'auth/wrong-password':'Senha incorreta.','auth/invalid-credential':'E-mail ou senha incorretos.',
+    'auth/too-many-requests':'Muitas tentativas. Aguarde alguns minutos.'};
+  return m[code]||'Erro: '+code;
+}
+async function doLogin(){
+  const email=document.getElementById('authEmail').value.trim();
+  const pass=document.getElementById('authPass').value;
+  if(!email||!pass){authError('Preencha e-mail e senha.');return;}
+  authError('');
+  try{await auth.signInWithEmailAndPassword(email,pass);}
+  catch(e){authError(firebaseErrorPT(e.code));}
+}
+async function doRegister(){
+  const empresa=document.getElementById('regEmpresa').value.trim();
+  const email=document.getElementById('regEmail').value.trim();
+  const pass=document.getElementById('regPass').value;
+  const pass2=document.getElementById('regPass2').value;
+  if(!empresa){authError('Informe o nome da empresa.');return;}
+  if(!email){authError('Informe o e-mail.');return;}
+  if(pass.length<6){authError('Senha precisa ter no mínimo 6 caracteres.');return;}
+  if(pass!==pass2){authError('As senhas não coincidem.');return;}
+  authError('');
+  try{
+    const cred=await auth.createUserWithEmailAndPassword(email,pass);
+    // Salva info da empresa no Firestore
+    await fsdb.collection('empresas').doc(cred.user.uid).set({
+      empresa: empresa, email: email, criadoEm: new Date().toISOString(),
+      dados: JSON.stringify(seedComNome(empresa))
+    });
+  }catch(e){authError(firebaseErrorPT(e.code));}
+}
+function doLogout(){
+  confirmModal('Sair do sistema?','Seus dados estão salvos na nuvem.',()=>{auth.signOut()});
+}
+function seedComNome(nome){
+  const d=seed();d.config.nomeLoja=nome;return d;
+}
+
+/* listener de auth — controla tudo */
+auth.onAuthStateChanged(async(user)=>{
+  if(user){
+    currentUser=user;
+    showLoading('Carregando dados...');
+    const dados=await store.load();
+    db = dados ? migrate(dados) : seedComNome(user.email);
+    // pega nome da empresa
+    try{
+      const doc=await fsdb.collection('empresas').doc(user.uid).get();
+      if(doc.exists&&doc.data().empresa){
+        db.config.nomeLoja=db.config.nomeLoja||doc.data().empresa;
+        document.getElementById('userEmpresa').textContent=doc.data().empresa;
+      }
+      document.getElementById('userEmail').textContent=user.email;
+    }catch(e){}
+    document.getElementById('authContainer').style.display='none';
+    document.getElementById('appContainer').style.display='flex';
+    document.getElementById('brandName').textContent=db.config.nomeLoja;
+    go('home');
+  }else{
+    currentUser=null;
+    document.getElementById('appContainer').style.display='none';
+    showLogin();
+  }
+});
 
 /* ============ Dados iniciais (dos seus prints) ============ */
 function seed(){
@@ -381,7 +557,7 @@ function migrate(d){
   return d;
 }
 
-let db = migrate(store.load()) || seed();
+let db = seed(); // placeholder until Firebase loads
 let cart = [];         // itens do balcão atual
 let descontoPct = 0;
 
@@ -1249,8 +1425,8 @@ function tick(){const d=new Date();const p=n=>String(n).padStart(2,'0');
 tick();setInterval(tick,1000*20);
 
 /* ============ Start ============ */
-$('#brandName').textContent=db.config.nomeLoja;
-go('home');
+// Auth listener handles startup — see onAuthStateChanged above
+showLoading('Conectando...');
 </script>
 </body>
 </html>
