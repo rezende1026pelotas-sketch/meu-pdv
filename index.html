@@ -730,6 +730,7 @@ function setDesconto(v){descontoPct=Math.max(0,Math.min(100,parseFloat(v)||0));r
 function openPagamento(){
   const subtotal=cart.reduce((s,i)=>s+i.preco*i.qtd,0);
   const total=subtotal*(1-descontoPct/100);
+  const cli=cliente(db.clienteAtualId);
   const opts=[
     ['Dinheiro','$','var(--money)','dinheiro'],
     ['PIX','⚡','var(--teal)','pix'],
@@ -741,15 +742,94 @@ function openPagamento(){
     <div style="text-align:center;margin-bottom:18px">
       <div style="color:var(--muted);font-size:13px">Total a pagar</div>
       <div class="mono" style="font-size:38px;font-weight:800">${money(total)}</div>
+      ${cli&&!cli.nome.startsWith('Consumidor')?`<div style="color:var(--muted);font-size:13px;margin-top:4px">Cliente: <b>${esc(cli.nome)}</b> · Crédito: <span class="mono ${cli.saldo<0?'neg':'pos'}">${money(cli.saldo)}</span></div>`:''}
     </div>
-    ${opts.map(o=>`<button class="pay-opt" onclick="finalizarVenda('${o[3]}',${total})">
+    ${opts.map(o=>`<button class="pay-opt" onclick="abrirRecebimento('${o[3]}',${total})">
       <span class="pi" style="background:${o[2]}22;color:${o[2]}">${o[1]}</span>${o[0]}</button>`).join('')}
   `,null);
 }
-function finalizarVenda(metodo,total){
+/* tela de recebimento com calculadora */
+let recebVal=0;
+function abrirRecebimento(metodo,total){
   const cli=cliente(db.clienteAtualId);
   if(metodo==='fiado' && (!cli || cli.nome.startsWith('Consumidor'))){
-    toast('Selecione um cliente para vender fiado',' bad');closeModal();openClientePicker('atual');return;
+    toast('Selecione um cliente para vender fiado','bad');closeModal();openClientePicker('atual');return;
+  }
+  if(metodo==='fiado'){finalizarVenda(metodo,total,total);return;}
+  recebVal=0;
+  renderRecebimento(metodo,total);
+}
+function renderRecebimento(metodo,total){
+  const troco=Math.max(0,recebVal-total);
+  const falta=Math.max(0,total-recebVal);
+  const metNome={dinheiro:'Dinheiro',pix:'PIX',credito:'Cartão de crédito',debito:'Cartão de débito'}[metodo]||metodo;
+  const cli=cliente(db.clienteAtualId);
+  $('#modal').innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal" style="max-width:720px">
+      <div class="modal-head">Pagamento · ${metNome}<button class="x" onclick="closeModal()">✕</button></div>
+      <div class="modal-body" style="display:flex;gap:18px;flex-wrap:wrap">
+        <div style="flex:1;min-width:260px">
+          ${cli&&!cli.nome.startsWith('Consumidor')?`<div style="background:var(--blue);color:#fff;padding:10px 14px;border-radius:var(--r2);margin-bottom:14px;font-weight:700;font-size:14px">Crédito em Loja<br><span class="mono" style="font-size:16px">${money(cli.saldo)}</span></div>`:''}
+          <div style="font-size:13px;color:var(--muted);margin-bottom:6px">${metNome}</div>
+          <div class="big-amount" style="margin-bottom:10px">${money(recebVal)}</div>
+          <div class="keypad" style="margin-bottom:10px">
+            ${[1,2,3].map(n=>`<button class="key" onclick="recebNum(${n},'${metodo}',${total})">${n}</button>`).join('')}<button class="key q" onclick="recebAdd(10,'${metodo}',${total})">+10</button>
+            ${[4,5,6].map(n=>`<button class="key" onclick="recebNum(${n},'${metodo}',${total})">${n}</button>`).join('')}<button class="key q" onclick="recebAdd(20,'${metodo}',${total})">+20</button>
+            ${[7,8,9].map(n=>`<button class="key" onclick="recebNum(${n},'${metodo}',${total})">${n}</button>`).join('')}<button class="key q" onclick="recebAdd(50,'${metodo}',${total})">+50</button>
+            <button class="key op" onclick="recebBack('${metodo}',${total})">⌫</button><button class="key" onclick="recebNum(0,'${metodo}',${total})">0</button>
+            <button class="key op c" onclick="recebVal=0;renderRecebimento('${metodo}',${total})">C</button><button class="key q" onclick="recebAdd(100,'${metodo}',${total})">+100</button>
+          </div>
+          <button class="confirm-btn" ${recebVal>=total?'':'disabled'} onclick="finalizarVenda('${metodo}',${total},${recebVal})">RECEBER</button>
+          <button style="width:100%;padding:14px;margin-top:8px;color:var(--accent);font-weight:700;font-size:14px;text-align:center" onclick="recebVal=${total};renderRecebimento('${metodo}',${total})">RECEBER VALOR TOTAL (${money(total)})</button>
+        </div>
+        <div style="flex:1;min-width:220px">
+          <div style="color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;font-weight:700">Resumo</div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px"><span>Produtos (${cart.length})</span><span class="mono">${money(cart.reduce((s,i)=>s+i.preco*i.qtd,0))}</span></div>
+          ${descontoPct>0?`<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px"><span>Desconto</span><span class="mono neg">-${descontoPct}%</span></div>`:''}
+          <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-weight:700;font-size:16px"><span>Total</span><span class="mono">${money(total)}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px"><span>Recebido</span><span class="mono">${money(recebVal)}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px"><span>A receber</span><span class="mono ${falta>0?'neg':''}">${money(falta)}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:14px 0;font-weight:800;font-size:20px"><span>Troco</span><span class="mono pos">${money(troco)}</span></div>
+        </div>
+      </div>
+    </div></div>`;
+}
+function recebNum(n,met,tot){recebVal=Math.round((recebVal*10+n*.01)*100)/100;renderRecebimento(met,tot)}
+function recebBack(met,tot){recebVal=Math.floor(recebVal*10)/100;renderRecebimento(met,tot)}
+function recebAdd(v,met,tot){recebVal=Math.round((recebVal+v)*100)/100;renderRecebimento(met,tot)}
+
+/* tela de sucesso pós-venda */
+function mostrarSucesso(venda,metodo){
+  const cli=venda.clienteId?cliente(venda.clienteId):null;
+  const ix=db.vendas.indexOf(venda);
+  view.innerHTML=`
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;gap:20px;padding:30px">
+      <div style="width:64px;height:64px;border-radius:50%;background:var(--money);display:grid;place-items:center;font-size:32px;color:#04200f">✓</div>
+      <div style="font-size:26px;font-weight:800">Venda finalizada com sucesso!</div>
+      <div style="color:var(--muted);font-size:15px">Venda #${venda.numero} · ${money(venda.valor)} · ${metodoLabel(metodo)}</div>
+      ${cli?`<div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 28px;text-align:center;margin-top:6px">
+        <div style="font-size:14px;color:var(--muted);margin-bottom:4px">Crédito de <b style="color:var(--text)">${esc(cli.nome)}</b></div>
+        <div class="mono" style="font-size:32px;font-weight:800;${cli.saldo<0?'color:var(--danger)':'color:var(--money)'}">${money(cli.saldo)}</div>
+        <div style="font-size:12px;color:var(--faint);margin-top:4px">Saldo atualizado após esta venda</div>
+      </div>`:''}
+      <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:500px;margin-top:14px">
+        <button class="pay-opt" style="justify-content:center;font-size:16px;padding:20px;background:var(--money)22;border-color:var(--money)" onclick="go('home')">
+          <span style="font-weight:800;color:var(--money)">INÍCIO</span></button>
+        <button class="pay-opt" style="justify-content:center;font-size:16px;padding:20px;background:var(--blue)22;border-color:var(--blue)" onclick="go('balcao')">
+          <span style="font-weight:800;color:var(--blue)">BALCÃO — Nova venda</span></button>
+        <div style="display:flex;gap:10px">
+          <button class="pay-opt" style="flex:1;justify-content:center;padding:14px" onclick="gerarNota(${ix>=0?ix:0})">Gerar Nota</button>
+          <button class="pay-opt" style="flex:1;justify-content:center;padding:14px" onclick="relatorioGerencial(${ix>=0?ix:0})">Relatório Gerencial</button>
+        </div>
+        <button class="pay-opt" style="justify-content:center;padding:14px" onclick="enviarNotaEmail(${ix>=0?ix:0})">Enviar nota fiscal por e-mail</button>
+      </div>
+    </div>`;
+}
+
+function finalizarVenda(metodo,total,recebido){
+  const cli=cliente(db.clienteAtualId);
+  if(metodo==='fiado' && (!cli || cli.nome.startsWith('Consumidor'))){
+    toast('Selecione um cliente para vender fiado','bad');closeModal();openClientePicker('atual');return;
   }
   const venda={
     codigo:String(1784590000000+Math.floor(Math.random()*9e5)),
@@ -774,11 +854,10 @@ function finalizarVenda(metodo,total){
     cli.historico.unshift({data:hoje(),valor:-total,op:'Venda'});
   }
   store.save();
-  cart=[];descontoPct=0;
+  cart=[];descontoPct=0;recebVal=0;
   closeModal();
-  toast(`Venda #${venda.numero} registrada · ${money(total)}`,'good');
-  if(alertas.length) setTimeout(()=>toast('⚠️ Estoque: '+alertas.join(' · '),'bad'),700);
-  renderBalcao();
+  mostrarSucesso(venda,metodo);
+  if(alertas.length) setTimeout(()=>toast('Estoque: '+alertas.join(' · '),'bad'),700);
 }
 
 /* ============ CLIENTES ============ */
@@ -803,9 +882,9 @@ function renderClientes(){
   </div>`;
 }
 function selecionarCliente(id){db.clienteAtualId=id;store.save();toast('Cliente selecionado: '+cliente(id).nome,'good');go('balcao')}
-function editCliente(id){
+function editCliente(id,voltaPicker){
   const c=id?cliente(id):null;
-  openModal(c?'✎ Editar cliente':'+ Novo cliente',`
+  openModal(c?'Editar cliente':'Adicionar cliente',`
     <label class="fl">Nome do cliente</label>
     <input class="finput" id="cliNome" value="${c?esc(c.nome):''}" placeholder="Nome / apelido">
     <label class="fl">Saldo inicial (negativo = fiado a pagar)</label>
@@ -814,27 +893,37 @@ function editCliente(id){
     const nome=$('#cliNome').value.trim();if(!nome){toast('Informe o nome','bad');return false;}
     const saldo=parseFloat($('#cliSaldo').value)||0;
     if(c){c.nome=nome;c.saldo=saldo;}else{db.clientes.push({id:uid(),nome,saldo,historico:[]});}
-    store.save();renderClientes();toast('Cliente salvo','good');
+    store.save();if(current==='clientes')renderClientes();toast('Cliente salvo','good');
+    if(voltaPicker)setTimeout(()=>openClientePicker(),100);
   });
 }
-function delCliente(id){
+function delCliente(id,voltaPicker){
   confirmModal('Excluir cliente?','Esta ação não pode ser desfeita.',()=>{
     db.clientes=db.clientes.filter(c=>c.id!==id);
     if(db.clienteAtualId===id)db.clienteAtualId=db.clientes[0].id;
-    store.save();renderClientes();toast('Cliente excluído');
+    store.save();if(current==='clientes')renderClientes();toast('Cliente excluído');
+    if(voltaPicker)setTimeout(()=>openClientePicker(),100);
   });
 }
 function openClientePicker(modo){
-  openModal('Selecionar cliente',`
-    <input class="finput" id="pickSearch" placeholder="Buscar…" oninput="renderPickList(this.value)">
-    <div id="pickList" style="max-height:46vh;overflow:auto;margin:0 -4px">${pickListHTML('')}</div>
-  `, null, `<button class="cancel" onclick="closeModal()">Cancelar</button><button class="ok" onclick="closeModal();editCliente()">+ Novo cliente</button>`);
+  openModal('Clientes',`
+    <div style="display:flex;gap:10px;margin-bottom:14px">
+      <input class="finput" id="pickSearch" placeholder="Buscar cliente…" style="flex:1;margin:0" oninput="renderPickList(this.value)">
+      <button class="btn pri" onclick="closeModal();editCliente(null,true)">Adicionar cliente</button>
+    </div>
+    <div id="pickList" style="max-height:50vh;overflow:auto;margin:0 -4px">${pickListHTML('')}</div>
+  `, null, `<button class="cancel" onclick="closeModal()">Cancelar</button>`);
 }
 function pickListHTML(q){
-  return db.clientes.filter(c=>c.nome.toLowerCase().includes(q.toLowerCase())).map(c=>
-    `<div class="clirow" onclick="db.clienteAtualId='${c.id}';store.save();closeModal();toast('Cliente: ${esc(c.nome).replace(/'/g,'')}' ,'good');render()">
-      <div class="av" style="font-weight:800;font-size:14px">${esc(c.nome.charAt(0))}</div><div class="nm">${esc(c.nome)}</div>
-      <div class="sal mono ${c.saldo<0?'neg':''}">${c.saldo?money(c.saldo):''}</div></div>`).join('');
+  return db.clientes.filter(c=>c.nome.toLowerCase().includes(q.toLowerCase())).map(c=>{
+    const isPadrao=c.nome.startsWith('Consumidor');
+    return `<div class="clirow">
+      <div class="av" style="font-weight:800;font-size:14px" onclick="db.clienteAtualId='${c.id}';store.save();closeModal();toast('Cliente: ${esc(c.nome).replace(/'/g,'')}','good');render()">${esc(c.nome.charAt(0))}</div>
+      <div class="nm" style="flex:1;cursor:pointer" onclick="db.clienteAtualId='${c.id}';store.save();closeModal();toast('Cliente: ${esc(c.nome).replace(/'/g,'')}','good');render()">${esc(c.nome)}</div>
+      <div class="sal mono ${c.saldo<0?'neg':''}">${c.saldo?money(c.saldo):''}</div>
+      ${isPadrao?'':`<button class="rowbtn edit" title="Editar" onclick="event.stopPropagation();closeModal();editCliente('${c.id}',true)">✎</button>
+      <button class="rowbtn del" title="Excluir" onclick="event.stopPropagation();closeModal();delCliente('${c.id}',true)">✕</button>`}
+    </div>`}).join('');
 }
 function renderPickList(q){$('#pickList').innerHTML=pickListHTML(q)}
 function trocarVendedor(){
