@@ -3,7 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Meu PDV — Sistema de Gestão</title>
+<title>RZand PDV — Sistema de Gestão</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiB2aWV3Qm94PSIwIDAgNTEyIDUxMiI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiNmZjdhM2QiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmY5ZDVjIi8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogIDwvZGVmcz4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEwMiIgZmlsbD0idXJsKCNiZykiLz4KICA8dGV4dCB4PSIyNTYiIHk9IjMwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9InN5c3RlbS11aSwtYXBwbGUtc3lzdGVtLHNhbnMtc2VyaWYiIGZvbnQtd2VpZ2h0PSI5MDAiIGZvbnQtc2l6ZT0iMjYwIiBmaWxsPSIjMWExMDA1IiBsZXR0ZXItc3BhY2luZz0iLTEwIj5SWjwvdGV4dD4KICA8dGV4dCB4PSIyNTYiIHk9IjQxMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9InN5c3RlbS11aSwtYXBwbGUtc3lzdGVtLHNhbnMtc2VyaWYiIGZvbnQtd2VpZ2h0PSI3MDAiIGZvbnQtc2l6ZT0iNzIiIGZpbGw9InJnYmEoMjYsMTYsNSwwLjU1KSIgbGV0dGVyLXNwYWNpbmc9IjgiPkFORDwvdGV4dD4KPC9zdmc+">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiB2aWV3Qm94PSIwIDAgNTEyIDUxMiI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiNmZjdhM2QiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmY5ZDVjIi8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogIDwvZGVmcz4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEwMiIgZmlsbD0idXJsKCNiZykiLz4KICA8dGV4dCB4PSIyNTYiIHk9IjMwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9InN5c3RlbS11aSwtYXBwbGUtc3lzdGVtLHNhbnMtc2VyaWYiIGZvbnQtd2VpZ2h0PSI5MDAiIGZvbnQtc2l6ZT0iMjYwIiBmaWxsPSIjMWExMDA1IiBsZXR0ZXItc3BhY2luZz0iLTEwIj5SWjwvdGV4dD4KICA8dGV4dCB4PSIyNTYiIHk9IjQxMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9InN5c3RlbS11aSwtYXBwbGUtc3lzdGVtLHNhbnMtc2VyaWYiIGZvbnQtd2VpZ2h0PSI3MDAiIGZvbnQtc2l6ZT0iNzIiIGZpbGw9InJnYmEoMjYsMTYsNSwwLjU1KSIgbGV0dGVyLXNwYWNpbmc9IjgiPkFORDwvdGV4dD4KPC9zdmc+">
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjogIlJaYW5kIFBEViIsICJzaG9ydF9uYW1lIjogIlJaYW5kIiwgImRlc2NyaXB0aW9uIjogIlNpc3RlbWEgZGUgZ2VzdFx1MDBlM28gZSB2ZW5kYXMgXHUyMDE0IFJaYW5kIiwgInN0YXJ0X3VybCI6ICIuIiwgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwZjEzMTgiLCAidGhlbWVfY29sb3IiOiAiI2ZmN2EzZCIsICJpY29ucyI6IFt7InNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lJSGRwWkhSb1BTSXhPVElpSUdobGFXZG9kRDBpTVRreUlpQjJhV1YzUW05NFBTSXdJREFnTlRFeUlEVXhNaUkrQ2lBZ1BHUmxabk0rQ2lBZ0lDQThiR2x1WldGeVIzSmhaR2xsYm5RZ2FXUTlJbUpuSWlCNE1UMGlNQ0lnZVRFOUlqQWlJSGd5UFNJeElpQjVNajBpTVNJK0NpQWdJQ0FnSUR4emRHOXdJRzltWm5ObGREMGlNQ1VpSUhOMGIzQXRZMjlzYjNJOUlpTm1aamRoTTJRaUx6NEtJQ0FnSUNBZ1BITjBiM0FnYjJabWMyVjBQU0l4TURBbElpQnpkRzl3TFdOdmJHOXlQU0lqWm1ZNVpEVmpJaTgrQ2lBZ0lDQThMMnhwYm1WaGNrZHlZV1JwWlc1MFBnb2dJRHd2WkdWbWN6NEtJQ0E4Y21WamRDQjNhV1IwYUQwaU5URXlJaUJvWldsbmFIUTlJalV4TWlJZ2NuZzlJakV3TWlJZ1ptbHNiRDBpZFhKc0tDTmlaeWtpTHo0S0lDQThkR1Y0ZENCNFBTSXlOVFlpSUhrOUlqTXdNQ0lnZEdWNGRDMWhibU5vYjNJOUltMXBaR1JzWlNJZ1ptOXVkQzFtWVcxcGJIazlJbk41YzNSbGJTMTFhU3d0WVhCd2JHVXRjM2x6ZEdWdExITmhibk10YzJWeWFXWWlJR1p2Ym5RdGQyVnBaMmgwUFNJNU1EQWlJR1p2Ym5RdGMybDZaVDBpTWpZd0lpQm1hV3hzUFNJak1XRXhNREExSWlCc1pYUjBaWEl0YzNCaFkybHVaejBpTFRFd0lqNVNXand2ZEdWNGRENEtJQ0E4ZEdWNGRDQjRQU0l5TlRZaUlIazlJalF4TUNJZ2RHVjRkQzFoYm1Ob2IzSTlJbTFwWkdSc1pTSWdabTl1ZEMxbVlXMXBiSGs5SW5ONWMzUmxiUzExYVN3dFlYQndiR1V0YzNsemRHVnRMSE5oYm5NdGMyVnlhV1lpSUdadmJuUXRkMlZwWjJoMFBTSTNNREFpSUdadmJuUXRjMmw2WlQwaU56SWlJR1pwYkd3OUluSm5ZbUVvTWpZc01UWXNOU3d3TGpVMUtTSWdiR1YwZEdWeUxYTndZV05wYm1jOUlqZ2lQa0ZPUkR3dmRHVjRkRDRLUEM5emRtYysiLCAic2l6ZXMiOiAiMTkyeDE5MiIsICJ0eXBlIjogImltYWdlL3N2Zyt4bWwifSwgeyJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCNGJXeHVjejBpYUhSMGNEb3ZMM2QzZHk1M015NXZjbWN2TWpBd01DOXpkbWNpSUhkcFpIUm9QU0kxTVRJaUlHaGxhV2RvZEQwaU5URXlJaUIyYVdWM1FtOTRQU0l3SURBZ05URXlJRFV4TWlJK0NpQWdQR1JsWm5NK0NpQWdJQ0E4YkdsdVpXRnlSM0poWkdsbGJuUWdhV1E5SW1KbklpQjRNVDBpTUNJZ2VURTlJakFpSUhneVBTSXhJaUI1TWowaU1TSStDaUFnSUNBZ0lEeHpkRzl3SUc5bVpuTmxkRDBpTUNVaUlITjBiM0F0WTI5c2IzSTlJaU5tWmpkaE0yUWlMejRLSUNBZ0lDQWdQSE4wYjNBZ2IyWm1jMlYwUFNJeE1EQWxJaUJ6ZEc5d0xXTnZiRzl5UFNJalptWTVaRFZqSWk4K0NpQWdJQ0E4TDJ4cGJtVmhja2R5WVdScFpXNTBQZ29nSUR3dlpHVm1jejRLSUNBOGNtVmpkQ0IzYVdSMGFEMGlOVEV5SWlCb1pXbG5hSFE5SWpVeE1pSWdjbmc5SWpFd01pSWdabWxzYkQwaWRYSnNLQ05pWnlraUx6NEtJQ0E4ZEdWNGRDQjRQU0l5TlRZaUlIazlJak13TUNJZ2RHVjRkQzFoYm1Ob2IzSTlJbTFwWkdSc1pTSWdabTl1ZEMxbVlXMXBiSGs5SW5ONWMzUmxiUzExYVN3dFlYQndiR1V0YzNsemRHVnRMSE5oYm5NdGMyVnlhV1lpSUdadmJuUXRkMlZwWjJoMFBTSTVNREFpSUdadmJuUXRjMmw2WlQwaU1qWXdJaUJtYVd4c1BTSWpNV0V4TURBMUlpQnNaWFIwWlhJdGMzQmhZMmx1WnowaUxURXdJajVTV2p3dmRHVjRkRDRLSUNBOGRHVjRkQ0I0UFNJeU5UWWlJSGs5SWpReE1DSWdkR1Y0ZEMxaGJtTm9iM0k5SW0xcFpHUnNaU0lnWm05dWRDMW1ZVzFwYkhrOUluTjVjM1JsYlMxMWFTd3RZWEJ3YkdVdGMzbHpkR1Z0TEhOaGJuTXRjMlZ5YVdZaUlHWnZiblF0ZDJWcFoyaDBQU0kzTURBaUlHWnZiblF0YzJsNlpUMGlOeklpSUdacGJHdzlJbkpuWW1Fb01qWXNNVFlzTlN3d0xqVTFLU0lnYkdWMGRHVnlMWE53WVdOcGJtYzlJamdpUGtGT1JEd3ZkR1Y0ZEQ0S1BDOXpkbWMrIiwgInNpemVzIjogIjUxMng1MTIiLCAidHlwZSI6ICJpbWFnZS9zdmcreG1sIn1dfQ==">
+<meta name="theme-color" content="#ff7a3d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="RZand">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Spline+Sans+Mono:wght@500;600;700&display=swap" rel="stylesheet">
@@ -41,7 +48,7 @@ input,select{font-family:inherit}
   padding:0 16px;background:#0b0e12;border-bottom:1px solid var(--line);
 }
 .brand{display:flex;align-items:center;gap:9px;font-weight:800;letter-spacing:-.02em}
-.brand .dot{width:26px;height:26px;border-radius:8px;
+.brand .dot{width:34px;height:26px;border-radius:8px;font-size:13px;letter-spacing:-0.5px;
   background:linear-gradient(135deg,var(--accent),#ff9d5c);
   display:grid;place-items:center;font-size:15px;color:#1a1005;font-weight:800}
 .topbar .clock{color:var(--muted);font-size:12.5px;display:flex;flex-direction:column;line-height:1.15;border-left:1px solid var(--line);padding-left:14px}
@@ -319,7 +326,7 @@ label.fl{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
 <div id="authContainer"></div>
 <div class="app" id="appContainer" style="display:none">
   <div class="topbar">
-    <div class="brand"><span class="dot">P</span><span id="brandName">Meu PDV</span></div>
+    <div class="brand"><span class="dot">RZ</span><span id="brandName">RZand</span></div>
     <div class="clock"><b id="clkDate"></b><span id="clkTime"></span></div>
     <div class="center" id="screenName">Início</div>
     <div class="user-info" id="userInfo">
@@ -382,8 +389,8 @@ function showLogin(){
   document.getElementById('authContainer').style.display='block';
   document.getElementById('authContainer').innerHTML=`
     <div class="auth-screen"><div class="auth-box">
-      <div class="logo"><span class="dot">P</span><span>Meu PDV</span></div>
-      <div class="sub">Sistema de gestão e vendas. Faça login para acessar.</div>
+      <div class="logo"><span class="dot" style="width:52px;height:44px;font-size:20px">RZ</span><span>RZand</span></div>
+      <div class="sub">Sistema de gestão e vendas</div>
       <div class="err" id="authErr"></div>
       <label class="fl">E-mail</label>
       <input class="finput" id="authEmail" type="email" placeholder="seu@email.com">
@@ -397,8 +404,8 @@ function showLogin(){
 function showRegister(){
   document.getElementById('authContainer').innerHTML=`
     <div class="auth-screen"><div class="auth-box">
-      <div class="logo"><span class="dot">P</span><span>Meu PDV</span></div>
-      <div class="sub">Crie a conta da sua empresa. Cada empresa tem seus dados separados.</div>
+      <div class="logo"><span class="dot" style="width:52px;height:44px;font-size:20px">RZ</span><span>RZand</span></div>
+      <div class="sub">Crie a conta da sua empresa</div>
       <div class="err" id="authErr"></div>
       <label class="fl">Nome da empresa / estabelecimento</label>
       <input class="finput" id="regEmpresa" placeholder="Ex.: Lanchonete do João">
