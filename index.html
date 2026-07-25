@@ -129,7 +129,8 @@ input,select{font-family:inherit}
 .searchbar input{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:var(--r2);
   color:var(--text);padding:12px 14px;font-size:15px;outline:none}
 .searchbar input:focus{border-color:var(--accent)}
-.cart{flex:1;min-height:120px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:auto}
+.cart{flex:0 0 auto;max-height:35vh;min-height:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:auto}
+.cart.empty-cart{max-height:60px;flex:0 0 auto}
 .cart table{width:100%;border-collapse:collapse}
 .cart th{position:sticky;top:0;background:var(--surface2);color:var(--muted);font-size:11px;text-transform:uppercase;
   letter-spacing:.05em;text-align:left;padding:11px 14px;font-weight:700;border-bottom:1px solid var(--line)}
@@ -143,7 +144,7 @@ input,select{font-family:inherit}
 .trash{color:var(--danger);font-size:17px;padding:4px 6px}
 .right-num{text-align:right}
 
-.prodgrid{flex:0 0 42%;min-height:180px;overflow:auto;display:grid;
+.prodgrid{flex:1;min-height:180px;overflow:auto;display:grid;
   grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px;padding-right:4px}
 .prod{background:var(--surface2);border:1px solid var(--line);border-radius:var(--r2);padding:12px 10px;
   text-align:center;display:flex;flex-direction:column;gap:5px;min-height:70px;justify-content:center;transition:.1s;
@@ -650,8 +651,9 @@ function renderBalcao(){
     <div class="pdv-left">
       <div class="searchbar">
         <input id="prodSearch" placeholder="Buscar produto…" value="${esc(prodFilter)}" oninput="prodFilter=this.value;refreshGrid()">
+        <button class="btn pri" style="white-space:nowrap" onclick="editProduto()">+ Produto</button>
       </div>
-      <div class="cart" id="cartBox">${cartHTML()}</div>
+      <div class="cart ${cart.length?'':'empty-cart'}" id="cartBox">${cartHTML()}</div>
       <div class="prodgrid" id="prodGrid">${prods.map(prodCardHTML).join('')}</div>
     </div>
     <div class="pdv-right">
@@ -696,18 +698,28 @@ function refreshGrid(){
   $('#prodGrid').innerHTML=prods.map(prodCardHTML).join('');
 }
 function cartHTML(){
-  if(!cart.length) return `<div class="empty"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg><div>Sem produtos<br><small style="color:var(--faint)">Toque num produto abaixo para adicionar</small></div></div>`;
+  if(!cart.length) return `<div class="empty" style="padding:14px;gap:6px;flex-direction:row"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg><span>Sem produtos · toque abaixo para adicionar</span></div>`;
   return `<table><thead><tr>
-      <th>Produto</th><th>Qnt.</th><th class="right-num">Valor unit.</th><th class="right-num">Total</th><th></th>
+      <th>Produto</th><th>Qnt.</th><th class="right-num">Valor unit.</th><th class="right-num">Total</th><th></th><th></th>
     </tr></thead><tbody>
     ${cart.map((i,ix)=>`<tr>
-      <td>${esc(i.nome)}</td>
+      <td>${esc(i.nome)}${i.obs?`<div style="color:var(--accent);font-size:11px;margin-top:2px">Obs: ${esc(i.obs)}</div>`:''}</td>
       <td><div class="qtybox"><button onclick="chgQtd(${ix},-1)">−</button><b class="mono">${i.qtd}</b><button onclick="chgQtd(${ix},1)">+</button></div></td>
       <td class="right-num mono">${money(i.preco)}</td>
       <td class="right-num mono">${money(i.preco*i.qtd)}</td>
+      <td><button class="rowbtn" title="Observações" onclick="editObs(${ix})" style="font-size:12px;width:28px;height:28px;${i.obs?'color:var(--accent);border-color:var(--accent)':''}">✎</button></td>
       <td class="right-num"><button class="trash" onclick="rmItem(${ix})">✕</button></td>
     </tr>`).join('')}
   </tbody></table>`;
+}
+function editObs(ix){
+  const i=cart[ix];
+  openModal('Observação · '+i.nome,`
+    <label class="fl">Observação do produto (ex.: dividido em 2, sem gelo, etc.)</label>
+    <input class="finput" id="obsText" value="${esc(i.obs||'')}" placeholder="Digite a observação…">
+  `,()=>{
+    i.obs=$('#obsText').value.trim();renderBalcao();toast('Observação salva','good');
+  });
 }
 function addToCart(pid){
   const p=db.produtos.find(x=>x.id===pid);if(!p)return;
@@ -715,7 +727,7 @@ function addToCart(pid){
   const noCarrinho=ex?ex.qtd:0;
   if(p.controla && noCarrinho+1>p.estoque)
     toast(`Estoque insuficiente · ${p.estoque} un. de ${p.nome}`,'bad');
-  if(ex)ex.qtd++;else cart.push({id:p.id,nome:p.nome,preco:p.preco,qtd:1});
+  if(ex)ex.qtd++;else cart.push({id:p.id,nome:p.nome,preco:p.preco,qtd:1,obs:''});
   renderBalcao();
 }
 function chgQtd(ix,d){
@@ -863,7 +875,7 @@ function finalizarVenda(metodo,total,recebido){
     codigo:String(1784590000000+Math.floor(Math.random()*9e5)),
     dataHora:agora(), cliente:cli?cli.nome:'Consumidor Final', clienteId:cli?cli.id:null,
     numero:db.contador++, valor:total, fiscal:'Pendente',
-    metodo, itens:cart.map(i=>({id:i.id,nome:i.nome,qtd:i.qtd,preco:i.preco}))
+    metodo, itens:cart.map(i=>({id:i.id,nome:i.nome,qtd:i.qtd,preco:i.preco,obs:i.obs||''}))
   };
   db.vendas.unshift(venda);
   // Baixa de estoque + registro de movimentação
