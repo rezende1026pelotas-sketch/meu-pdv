@@ -891,7 +891,7 @@ function finalizarVenda(metodo,total,recebido){
   });
   if(metodo==='fiado'){
     cli.saldo-=total;
-    cli.historico.unshift({data:hoje(),valor:-total,op:'Venda'});
+    cli.historico.unshift({data:hoje(),valor:-total,op:'Venda',vendaNum:venda.numero});
   }
   store.save();
   cart=[];descontoPct=0;recebVal=0;
@@ -1009,18 +1009,48 @@ function renderCredito(){
     </div>
     <div class="card" style="overflow:auto">
       <table class="tbl"><thead><tr><th>Data</th><th class="right-num">Valor</th><th>Operação</th><th class="right-num">Ações</th></tr></thead><tbody>
-      ${(c.historico||[]).map((h,hi)=>`<tr>
+      ${(c.historico||[]).map((h,hi)=>`<tr style="cursor:pointer" onclick="verDetalheLancamento('${c.id}',${hi})">
         <td class="mono">${h.data}</td>
         <td class="right-num mono ${h.valor<0?'neg':'pos'}">${money(h.valor)}</td>
-        <td>${h.op}</td>
+        <td>${h.op}${h.vendaNum?` <span style="color:var(--faint);font-size:11px">#${h.vendaNum}</span>`:''}</td>
         <td class="right-num" style="white-space:nowrap">
-          <button class="rowbtn" title="Imprimir" onclick="imprimirLancamento('${c.id}',${hi})">⎙</button>
-          <button class="rowbtn edit" title="Editar" onclick="editarLancamento('${c.id}',${hi})">✎</button>
-          <button class="rowbtn del" title="Excluir" onclick="excluirLancamento('${c.id}',${hi})">✕</button>
+          <button class="rowbtn" title="Imprimir" onclick="event.stopPropagation();imprimirLancamento('${c.id}',${hi})">⎙</button>
+          <button class="rowbtn edit" title="Editar" onclick="event.stopPropagation();editarLancamento('${c.id}',${hi})">✎</button>
+          <button class="rowbtn del" title="Excluir" onclick="event.stopPropagation();excluirLancamento('${c.id}',${hi})">✕</button>
         </td></tr>`).join('') || '<tr><td colspan="4" style="color:var(--faint);text-align:center;padding:30px">Sem histórico</td></tr>'}
       </tbody></table>
     </div>
   </div>`;
+}
+/* --- ver detalhes de um lançamento (busca a venda vinculada) --- */
+function verDetalheLancamento(cid,hi){
+  const c=cliente(cid),h=c.historico[hi];
+  // tenta encontrar a venda vinculada
+  let venda=null;
+  if(h.vendaNum) venda=db.vendas.find(v=>v.numero===h.vendaNum);
+  if(!venda && h.op==='Venda'){
+    // busca por data/valor/cliente
+    venda=db.vendas.find(v=>v.cliente===c.nome && Math.abs(v.valor+h.valor)<0.01);
+  }
+  let body=`
+    <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)">
+      <span style="color:var(--muted)">Data</span><span class="mono">${h.data}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)">
+      <span style="color:var(--muted)">Operação</span><span>${h.op}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)">
+      <span style="color:var(--muted)">Valor</span><span class="mono" style="font-size:18px;font-weight:800;${h.valor<0?'color:var(--danger)':'color:var(--money)'}">${money(h.valor)}</span></div>`;
+  if(venda && venda.itens && venda.itens.length){
+    body+=`<div style="margin-top:16px;font-weight:700;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Itens da compra</div>`;
+    body+=venda.itens.map(i=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)">
+      <span>${i.qtd}× ${esc(i.nome)}${i.obs?` <span style="color:var(--accent);font-size:11px">(${esc(i.obs)})</span>`:''}</span>
+      <span class="mono">${money(i.preco*i.qtd)}</span></div>`).join('');
+    body+=`<div style="display:flex;justify-content:space-between;padding:12px 0;font-weight:800;font-size:16px">
+      <span>Total</span><span class="mono">${money(venda.valor)}</span></div>`;
+    body+=`<div style="color:var(--faint);font-size:12px;margin-top:4px">Venda #${venda.numero} · ${venda.dataHora} · ${metodoLabel(venda.metodo)}</div>`;
+  } else if(h.op==='Venda'){
+    body+=`<div style="color:var(--faint);font-size:13px;margin-top:14px">Detalhes dos itens não disponíveis para este lançamento.</div>`;
+  }
+  openModal('Detalhes · '+c.nome, body, null);
 }
 /* --- editar / excluir / imprimir lançamento do crédito --- */
 function editarLancamento(cid,hi){
