@@ -114,6 +114,7 @@ input,select{font-family:inherit}
 .tile.sangria{background:linear-gradient(160deg,#3a4653,#48566a)}
 .tile.config{background:linear-gradient(160deg,#33404d,#3f5061)}
 .tile.entregas{background:linear-gradient(160deg,#d9772e,#ef8f3c)}
+.tile.fechamento{background:linear-gradient(160deg,#2f8f4e,#3aa85e)}
 .canal-seg{display:flex;gap:6px;margin-bottom:12px}
 .canal-seg button{flex:1;padding:11px 8px;border-radius:var(--r2);border:1px solid var(--line);background:var(--surface2);color:var(--muted);font-weight:700;font-size:14px;cursor:pointer}
 .canal-seg button.on{background:var(--accent);border-color:var(--accent);color:#fff}
@@ -550,6 +551,7 @@ function seed(){
     produtos, clientes, vendas,
     motoboys:[{id:uid(),nome:'Motoboy 1',idade:'',moto:'',placa:'',ativo:true},{id:uid(),nome:'Motoboy 2',idade:'',moto:'',placa:'',ativo:true}],
     caixa:[], // sangria / reforço
+    fechamentos:[], // histórico de fechamentos de caixa
     estoqueMov:[], // movimentações de estoque
     contador:567,
     clienteAtualId:clientes[0].id,
@@ -562,6 +564,9 @@ function uid(){return Math.random().toString(36).slice(2,10)}
 function migrate(d){
   if(!d) return d;
   if(!d.estoqueMov) d.estoqueMov=[];
+  if(!d.fechamentos) d.fechamentos=[];
+  (d.vendas||[]).forEach(v=>{ if(v.ts===undefined) v.ts=0; });
+  (d.caixa||[]).forEach(m=>{ if(m.ts===undefined) m.ts=0; });
   if(d.config && d.config.expressCheckout===undefined) d.config.expressCheckout=false;
   if(!d.motoboys) d.motoboys=[];
   (d.motoboys||[]).forEach(m=>{ if(m.idade===undefined)m.idade=''; if(m.moto===undefined)m.moto=''; if(m.placa===undefined)m.placa=''; if(m.ativo===undefined)m.ativo=true; });
@@ -600,11 +605,11 @@ function toast(msg,kind){const t=$('#toast');t.className='toast show '+(kind||''
 
 /* ============ Router ============ */
 let current='home';
-const titles={home:'Início',balcao:'Balcão',entregas:'Entregas',clientes:'Clientes',credito:'Crédito dos clientes',vendas:'Últimas vendas',sangria:'Sangria / Reforço',cadastro:'Cadastro de Produtos',config:'Configurações'};
+const titles={home:'Início',balcao:'Balcão',entregas:'Entregas',fechamento:'Fechamento de caixa',clientes:'Clientes',credito:'Crédito dos clientes',vendas:'Últimas vendas',sangria:'Sangria / Reforço',cadastro:'Cadastro de Produtos',config:'Configurações'};
 function go(v){current=v;$('#screenName').textContent=titles[v];render();window.scrollTo?.(0,0);view.scrollTop=0}
 function render(){
   renderBanner();
-  ({home:renderHome,balcao:renderBalcao,entregas:renderEntregas,clientes:renderClientes,credito:renderCredito,vendas:renderVendas,sangria:renderSangria,cadastro:renderCadastro,config:renderConfig}[current])();
+  ({home:renderHome,balcao:renderBalcao,entregas:renderEntregas,fechamento:renderFechamento,clientes:renderClientes,credito:renderCredito,vendas:renderVendas,sangria:renderSangria,cadastro:renderCadastro,config:renderConfig}[current])();
 }
 function renderBanner(){
   const b=$('#banner');
@@ -643,6 +648,9 @@ function renderHome(){
       </div>
       <div class="tile vendas" onclick="go('vendas')">
         <span class="k">U</span><div class="t">ÚLTIMAS VENDAS</div><div class="s">${db.vendas.length} registros · relatórios</div>
+      </div>
+      <div class="tile fechamento" onclick="go('fechamento')">
+        <span class="k">F</span><div class="t">FECHAMENTO DE CAIXA</div><div class="s">Totais por pagamento, motoboy e gaveta</div>
       </div>
       <div class="tile sangria" onclick="go('sangria')">
         <span class="k">S</span><div class="t">SANGRIA / REFORÇO</div><div class="s">Movimento de caixa</div>
@@ -920,6 +928,7 @@ function finalizarVenda(metodo,total,recebido){
   const ent=(canalAtual==='entrega');
   const venda={
     codigo:String(1784590000000+Math.floor(Math.random()*9e5)),
+    ts:Date.now(),
     dataHora:agora(), cliente:cli?cli.nome:'Consumidor Final', clienteId:cli?cli.id:null,
     numero:db.contador++, valor:total, fiscal:'Pendente',
     metodo, itens:cart.map(i=>({id:i.id,nome:i.nome,qtd:i.qtd,preco:i.preco,obs:i.obs||''})),
@@ -1675,14 +1684,159 @@ function movCaixa(tipo){
     <label class="fl">Motivo</label><input class="finput" id="movMot" placeholder="Ex.: troco, pagamento fornecedor…">
   `,()=>{
     const v=parseFloat($('#movVal').value);if(!v||v<=0){toast('Informe um valor','bad');return false;}
-    db.caixa.unshift({tipo,valor:v,motivo:$('#movMot').value.trim(),data:agora()});
+    db.caixa.unshift({tipo,valor:v,motivo:$('#movMot').value.trim(),data:agora(),ts:Date.now()});
     store.save();renderSangria();toast((tipo==='reforco'?'Reforço':'Sangria')+' registrada','good');
   });
 }
-function fecharCaixa(){
-  confirmModal('Fechar caixa?','Isso reinicia a contagem de dias do caixa aberto.',()=>{
-    db.config.caixaAbertoEm=Date.now();store.save();render();toast('Caixa fechado e reaberto','good');
+function fecharCaixa(){go('fechamento');}
+
+/* ============ FECHAMENTO DE CAIXA ============ */
+function calcFechamento(desde){
+  const ini=desde!==undefined?desde:db.config.caixaAbertoEm;
+  const vs=db.vendas.filter(v=>(v.ts||0)>=ini);
+  const movs=db.caixa.filter(m=>(m.ts||0)>=ini);
+  const metodos=['dinheiro','pix','credito','debito','fiado'];
+  const porMetodo={};
+  metodos.forEach(m=>porMetodo[m]={n:0,total:0});
+  vs.forEach(v=>{const m=porMetodo[v.metodo]; if(m){m.n++;m.total+=v.valor;}});
+  const fiado=porMetodo.fiado.total;
+  const totalBruto=vs.reduce((s,v)=>s+v.valor,0);
+  const recebido=totalBruto-fiado;
+  const taxas=vs.reduce((s,v)=>s+(v.taxa||0),0);
+  const dinheiroBalcao=vs.filter(v=>v.metodo==='dinheiro'&&v.canal!=='entrega').reduce((s,v)=>s+v.valor,0);
+  const reforcos=movs.filter(m=>m.tipo==='reforco').reduce((s,m)=>s+m.valor,0);
+  const sangrias=movs.filter(m=>m.tipo==='sangria').reduce((s,m)=>s+m.valor,0);
+  const dinheiroGaveta=dinheiroBalcao+reforcos-sangrias;
+  const ent=vs.filter(v=>v.canal==='entrega');
+  const grupos={};
+  ent.forEach(v=>{const k=v.motoboyId||'sem';(grupos[k]=grupos[k]||[]).push(v);});
+  const porMotoboy=Object.keys(grupos).map(k=>{
+    const arr=grupos[k];
+    return {
+      id:k, nome:k==='sem'?'Sem motoboy':motoboyNome(k), n:arr.length,
+      dinheiro:arr.filter(v=>v.metodo==='dinheiro').reduce((s,v)=>s+v.valor,0),
+      online:arr.filter(v=>['pix','credito','debito'].includes(v.metodo)).reduce((s,v)=>s+v.valor,0),
+      fiado:arr.filter(v=>v.metodo==='fiado').reduce((s,v)=>s+v.valor,0),
+      taxa:arr.reduce((s,v)=>s+(v.taxa||0),0),
+      total:arr.reduce((s,v)=>s+v.valor,0)
+    };
   });
+  return {ini,nVendas:vs.length,porMetodo,fiado,totalBruto,recebido,taxas,dinheiroBalcao,reforcos,sangrias,dinheiroGaveta,porMotoboy};
+}
+
+function renderFechamento(){
+  const f=calcFechamento();
+  const d=new Date(f.ini);const p=n=>String(n).padStart(2,'0');
+  const aberto=`${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  const metRows=['dinheiro','pix','credito','debito','fiado'].map(m=>{
+    const x=f.porMetodo[m];
+    return `<tr><td>${metodoLabel(m)}</td><td class="right-num">${x.n}</td><td class="right-num mono">${money(x.total)}</td></tr>`;
+  }).join('');
+  const motoRows=f.porMotoboy.map(g=>`<tr>
+    <td>${esc(g.nome)}</td><td class="right-num">${g.n}</td>
+    <td class="right-num mono" style="color:var(--money)">${money(g.dinheiro)}</td>
+    <td class="right-num mono" style="color:var(--blue)">${money(g.online)}</td>
+    <td class="right-num mono">${money(g.taxa)}</td>
+    <td class="right-num mono" style="font-weight:700">${money(g.total)}</td></tr>`).join('')
+    || '<tr><td colspan="6" style="text-align:center;color:var(--faint);padding:20px">Nenhuma entrega no período</td></tr>';
+  const histRows=(db.fechamentos||[]).map((h,i)=>`<tr onclick="verFechamento(${i})" style="cursor:pointer">
+    <td class="mono">${h.data}</td><td class="right-num">${h.nVendas}</td>
+    <td class="right-num mono">${money(h.recebido)}</td>
+    <td style="text-align:right;color:var(--accent)">ver ›</td></tr>`).join('')
+    || '<tr><td colspan="4" style="text-align:center;color:var(--faint);padding:20px">Nenhum fechamento ainda</td></tr>';
+
+  view.innerHTML=`
+  <div class="scr-head">
+    <button class="back" onclick="go('home')">Voltar<small>ESC</small></button>
+    <div class="scr-title">Fechamento de caixa</div>
+    <div class="spacer"></div>
+    <button class="btn" onclick="imprimirFechamento()">Imprimir</button>
+    <button class="btn dan" onclick="confirmarFecharCaixa()">Fechar caixa</button>
+  </div>
+  <div style="padding:16px;max-width:1000px;margin:0 auto">
+    <div style="color:var(--muted);font-size:13px;margin-bottom:14px">Período em aberto desde <b>${aberto}</b></div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+      <div class="ent-card" style="flex:1;min-width:150px"><div style="color:var(--muted);font-size:12px">Recebido</div><div class="mono" style="font-size:24px;font-weight:800;color:var(--money)">${money(f.recebido)}</div></div>
+      <div class="ent-card" style="flex:1;min-width:150px"><div style="color:var(--muted);font-size:12px">A receber (fiado)</div><div class="mono" style="font-size:24px;font-weight:800;color:var(--accent)">${money(f.fiado)}</div></div>
+      <div class="ent-card" style="flex:1;min-width:150px"><div style="color:var(--muted);font-size:12px">Vendas</div><div class="mono" style="font-size:24px;font-weight:800">${f.nVendas}</div></div>
+      <div class="ent-card" style="flex:1;min-width:150px"><div style="color:var(--muted);font-size:12px">Taxas de entrega</div><div class="mono" style="font-size:24px;font-weight:800">${money(f.taxas)}</div></div>
+    </div>
+
+    <div style="font-weight:700;font-size:14px;margin-bottom:8px">Por forma de pagamento</div>
+    <div class="card" style="margin-bottom:20px"><table class="tbl"><thead><tr><th>Forma</th><th class="right-num">Qtd</th><th class="right-num">Total</th></tr></thead><tbody>${metRows}</tbody></table></div>
+
+    <div style="font-weight:700;font-size:14px;margin-bottom:8px">Dinheiro na gaveta (esperado)</div>
+    <div class="card" style="margin-bottom:20px;padding:14px 16px">
+      <div style="display:flex;justify-content:space-between;padding:5px 0"><span>Vendas em dinheiro (balcão)</span><span class="mono">${money(f.dinheiroBalcao)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:5px 0"><span>+ Reforços</span><span class="mono pos">${money(f.reforcos)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:5px 0"><span>− Sangrias</span><span class="mono neg">${money(f.sangrias)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0 0;border-top:1px solid var(--line);margin-top:5px;font-weight:800;font-size:16px"><span>Esperado na gaveta</span><span class="mono">${money(f.dinheiroGaveta)}</span></div>
+      <div style="color:var(--faint);font-size:12px;margin-top:6px">O dinheiro das entregas está com os motoboys — veja a tabela abaixo.</div>
+    </div>
+
+    <div style="font-weight:700;font-size:14px;margin-bottom:8px">Entregas por motoboy</div>
+    <div class="card" style="margin-bottom:20px"><table class="tbl"><thead><tr><th>Motoboy</th><th class="right-num">Ent.</th><th class="right-num">Dinheiro</th><th class="right-num">Cartão/Pix</th><th class="right-num">Taxa</th><th class="right-num">Total</th></tr></thead><tbody>${motoRows}</tbody></table></div>
+
+    <div style="font-weight:700;font-size:14px;margin-bottom:8px">Fechamentos anteriores</div>
+    <div class="card"><table class="tbl"><thead><tr><th>Data</th><th class="right-num">Vendas</th><th class="right-num">Recebido</th><th></th></tr></thead><tbody>${histRows}</tbody></table></div>
+  </div>`;
+}
+
+function confirmarFecharCaixa(){
+  const f=calcFechamento();
+  if(f.nVendas===0){toast('Nenhuma venda no período para fechar','bad');return;}
+  confirmModal('Fechar o caixa?',`Vai arquivar ${f.nVendas} venda(s) · recebido ${money(f.recebido)}. O período recomeça do zero (as vendas continuam no histórico).`,()=>{
+    db.fechamentos.unshift({
+      data:agora(), ini:f.ini, fim:Date.now(),
+      nVendas:f.nVendas, recebido:f.recebido, totalBruto:f.totalBruto, fiado:f.fiado, taxas:f.taxas,
+      porMetodo:f.porMetodo, dinheiroGaveta:f.dinheiroGaveta, reforcos:f.reforcos, sangrias:f.sangrias,
+      dinheiroBalcao:f.dinheiroBalcao, porMotoboy:f.porMotoboy, loja:db.config.nomeLoja, vendedor:db.vendedor
+    });
+    db.config.caixaAbertoEm=Date.now();
+    store.save();renderFechamento();toast('Caixa fechado. Novo período iniciado.','good');
+  });
+}
+
+function imprimirFechamento(snap){
+  const f=snap||calcFechamento();
+  const metLinhas=['dinheiro','pix','credito','debito','fiado'].map(m=>`<tr><td>${metodoLabel(m)}</td><td style="text-align:right">${money((f.porMetodo[m]||{}).total||0)}</td></tr>`).join('');
+  const motoLinhas=(f.porMotoboy||[]).map(g=>`<tr><td>${esc(g.nome)} (${g.n})</td><td style="text-align:right">${money(g.total)}</td></tr>`).join('')||'<tr><td colspan="2" style="color:#666">Sem entregas</td></tr>';
+  doPrint(`<div class="receipt">
+    <h2>${esc(db.config.nomeLoja)}</h2>
+    <div class="rc-sub">Fechamento de caixa</div>
+    <div class="rc-line">${snap?snap.data:agora()}</div>
+    <div class="rc-line">Vendedor: ${esc(db.vendedor)}</div>
+    <hr>
+    <div class="rc-line"><b>Por forma de pagamento</b></div>
+    <table class="rc-tbl">${metLinhas}</table>
+    <hr>
+    <table class="rc-tbl">
+      <tr><td><b>RECEBIDO</b></td><td style="text-align:right"><b>${money(f.recebido)}</b></td></tr>
+      <tr><td>A receber (fiado)</td><td style="text-align:right">${money(f.fiado)}</td></tr>
+      <tr><td>Taxas de entrega</td><td style="text-align:right">${money(f.taxas)}</td></tr>
+      <tr><td>Dinheiro na gaveta</td><td style="text-align:right">${money(f.dinheiroGaveta)}</td></tr>
+    </table>
+    <hr>
+    <div class="rc-line"><b>Entregas por motoboy</b></div>
+    <table class="rc-tbl">${motoLinhas}</table>
+    <div class="rc-foot">Documento sem valor fiscal</div>
+  </div>`);
+}
+
+function verFechamento(i){
+  const h=db.fechamentos[i];if(!h)return;
+  const metLinhas=['dinheiro','pix','credito','debito','fiado'].map(m=>`<div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:var(--muted)">${metodoLabel(m)}</span><span class="mono">${money((h.porMetodo[m]||{}).total||0)}</span></div>`).join('');
+  const motoLinhas=(h.porMotoboy||[]).map(g=>`<div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:var(--muted)">${esc(g.nome)}</span><span class="mono">${money(g.total)}</span></div>`).join('')||'<div style="color:var(--faint);font-size:13px">Sem entregas</div>';
+  openModal('Fechamento · '+h.data,`
+    <div style="display:flex;justify-content:space-between;padding:4px 0;font-weight:800;font-size:16px"><span>Recebido</span><span class="mono" style="color:var(--money)">${money(h.recebido)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:var(--muted)">A receber (fiado)</span><span class="mono">${money(h.fiado)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:var(--muted)">Taxas</span><span class="mono">${money(h.taxas)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:var(--muted)">Dinheiro na gaveta</span><span class="mono">${money(h.dinheiroGaveta)}</span></div>
+    <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
+    <div style="font-weight:700;font-size:13px;margin-bottom:4px">Formas de pagamento</div>${metLinhas}
+    <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
+    <div style="font-weight:700;font-size:13px;margin-bottom:4px">Por motoboy</div>${motoLinhas}
+  `,null,`<button class="btn" onclick="imprimirFechamento(db.fechamentos[${i}])">Imprimir</button><button class="cancel" onclick="closeModal()" style="color:var(--accent)">Fechar</button>`);
 }
 
 /* ============ CADASTRO DE PRODUTOS + ESTOQUE ============ */
@@ -1851,7 +2005,7 @@ document.addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'){if(e.key==='Enter'&&modalConfirm)doOk();return;}
   const k=e.key.toLowerCase();
   if(current==='home'){
-    if(k==='b')go('balcao');else if(k==='e')go('entregas');else if(k==='c')go('credito');else if(k==='u')go('vendas');
+    if(k==='b')go('balcao');else if(k==='e')go('entregas');else if(k==='f')go('fechamento');else if(k==='c')go('credito');else if(k==='u')go('vendas');
     else if(k==='s')go('sangria');else if(k==='p')go('cadastro');else if(k==='ç'||k===';')go('config');
     else if(e.key==='F8')openClientePicker('atual');else if(e.key==='F9')trocarVendedor();
   }
