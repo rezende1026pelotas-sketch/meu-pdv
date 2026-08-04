@@ -548,7 +548,7 @@ function seed(){
     config:{nomeLoja:'Meu PDV', caixaAbertoEm:Date.now()-4*864e5},
     vendedor:'PC NOVO',
     produtos, clientes, vendas,
-    motoboys:[{id:uid(),nome:'Motoboy 1',ativo:true},{id:uid(),nome:'Motoboy 2',ativo:true}],
+    motoboys:[{id:uid(),nome:'Motoboy 1',idade:'',moto:'',placa:'',ativo:true},{id:uid(),nome:'Motoboy 2',idade:'',moto:'',placa:'',ativo:true}],
     caixa:[], // sangria / reforço
     estoqueMov:[], // movimentações de estoque
     contador:567,
@@ -563,6 +563,7 @@ function migrate(d){
   if(!d) return d;
   if(!d.estoqueMov) d.estoqueMov=[];
   if(!d.motoboys) d.motoboys=[];
+  (d.motoboys||[]).forEach(m=>{ if(m.idade===undefined)m.idade=''; if(m.moto===undefined)m.moto=''; if(m.placa===undefined)m.placa=''; if(m.ativo===undefined)m.ativo=true; });
   (d.vendas||[]).forEach(v=>{ if(v.canal===undefined) v.canal='balcao'; });
   (d.produtos||[]).forEach(p=>{
     if(p.estoque===undefined) p.estoque=25;
@@ -981,19 +982,24 @@ function renderEntregas(){
     </div>`;
   }).join('');
 
-  const cardHTML=lista.map(v=>{
+  const single = entFiltroMoto!=='todos';
+  const listaOrd = single ? lista.slice().reverse() : lista; // rota: da primeira pra última
+  const cardHTML=listaOrd.map((v,idx)=>{
     const met=v.metodo||'—';
     const entregue=v.entregaStatus==='entregue';
+    const prod=v.valor-(v.taxa||0);
+    const itensTxt=(v.itens||[]).map(i=>`${i.qtd}× ${esc(i.nome)}`).join(' · ')||'—';
     return `<div class="ent-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
         <div style="flex:1;min-width:180px">
-          <div style="font-weight:800;font-size:15px">#${v.numero} · ${esc(v.cliente)}</div>
-          ${v.endereco?`<div style="color:var(--muted);font-size:13px;margin-top:2px">${esc(v.endereco)}</div>`:''}
-          <div style="color:var(--muted);font-size:13px;margin-top:4px">${(v.itens||[]).length} item(s) · ${v.dataHora||''}</div>
+          <div style="font-weight:800;font-size:15px">${single?`<span style="color:var(--accent)">${idx+1}ª parada · </span>`:''}#${v.numero} · ${esc(v.cliente)}</div>
+          ${v.endereco?`<div style="color:var(--text);font-size:13px;margin-top:3px;font-weight:700">${esc(v.endereco)}</div>`:`<div style="color:var(--faint);font-size:12px;margin-top:3px">sem endereço informado</div>`}
+          <div style="color:var(--muted);font-size:13px;margin-top:6px">${itensTxt}</div>
         </div>
-        <div style="text-align:right">
+        <div style="text-align:right;min-width:130px">
           <div class="mono" style="font-weight:800;font-size:17px">${money(v.valor)}</div>
-          ${v.taxa?`<div style="color:var(--muted);font-size:12px">taxa ${money(v.taxa)}</div>`:''}
+          <div style="color:var(--muted);font-size:12px;margin-top:2px">Produtos ${money(prod)}</div>
+          ${v.taxa?`<div style="color:var(--muted);font-size:12px">Taxa ${money(v.taxa)}</div>`:''}
         </div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
@@ -1008,7 +1014,19 @@ function renderEntregas(){
     </div>`;
   }).join('');
 
-  const motoChips=(db.motoboys||[]).map(m=>`<span class="moto-chip">${esc(m.nome)}
+  // cabeçalho de rota quando um motoboy específico está selecionado
+  let rotaHeader='';
+  if(single){
+    const m=db.motoboys.find(x=>x.id===entFiltroMoto);
+    const dados=m?[m.moto&&('Moto: '+esc(m.moto)), m.placa&&('Placa: '+esc(m.placa)), m.idade&&('Idade: '+esc(m.idade))].filter(Boolean).join(' · '):'';
+    rotaHeader=`<div class="ent-card" style="border-color:var(--accent);background:var(--surface2)">
+      <div style="font-weight:800;font-size:16px">Rota de ${esc(m?m.nome:'—')}</div>
+      <div style="color:var(--muted);font-size:13px;margin-top:4px">${dados||'Sem dados cadastrais'} · ${lista.length} parada(s)</div>
+    </div>`;
+  }
+
+  const motoChips=(db.motoboys||[]).map(m=>`<span class="moto-chip">
+      <span style="cursor:pointer" onclick="verMotoboy('${m.id}')">${esc(m.nome)}${m.placa?` · <span class="mono" style="font-weight:600;color:var(--muted)">${esc(m.placa)}</span>`:''}</span>
       <span class="mx" title="Editar" onclick="editMotoboy('${m.id}')">✎</span>
       <span class="mx" title="Remover" onclick="delMotoboy('${m.id}')">✕</span></span>`).join(' ');
 
@@ -1040,6 +1058,7 @@ function renderEntregas(){
     <div style="color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:10px">Fechamento por motoboy${entFiltroStatus==='rota'?' (em rota)':entFiltroStatus==='entregue'?' (entregues)':''}</div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px">${resumoHTML||'<span style="color:var(--muted);font-size:13px">Sem entregas para mostrar.</span>'}</div>
 
+    ${rotaHeader}
     <div style="color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:10px">Entregas (${lista.length})</div>
     ${cardHTML||'<div class="ent-card" style="text-align:center;color:var(--muted)">Nenhuma entrega aqui. Faça uma venda no Balcão escolhendo o canal <b>Entrega</b>.</div>'}
   </div>`;
@@ -1056,23 +1075,49 @@ function reabrirEntrega(codigo){
 }
 function addMotoboy(){
   openModal('Adicionar motoboy',`
-    <label class="fl">Nome do motoboy</label>
+    <label class="fl" style="margin-top:0">Nome do motoboy</label>
     <input class="finput" id="motoNome" placeholder="Nome / apelido">
+    <label class="fl">Idade</label>
+    <input class="finput mono" id="motoIdade" type="number" placeholder="Ex.: 28">
+    <label class="fl">Moto (modelo)</label>
+    <input class="finput" id="motoMoto" placeholder="Ex.: Honda CG 160">
+    <label class="fl">Placa</label>
+    <input class="finput" id="motoPlaca" placeholder="Ex.: ABC1D23">
   `,()=>{
     const nome=$('#motoNome').value.trim();if(!nome){toast('Informe o nome','bad');return false;}
-    db.motoboys.push({id:uid(),nome,ativo:true});
+    db.motoboys.push({id:uid(),nome,idade:$('#motoIdade').value.trim(),moto:$('#motoMoto').value.trim(),placa:$('#motoPlaca').value.trim().toUpperCase(),ativo:true});
     store.save();if(current==='entregas')renderEntregas();toast('Motoboy adicionado','good');
   });
 }
 function editMotoboy(id){
   const m=db.motoboys.find(x=>x.id===id);if(!m)return;
   openModal('Editar motoboy',`
-    <label class="fl">Nome do motoboy</label>
+    <label class="fl" style="margin-top:0">Nome do motoboy</label>
     <input class="finput" id="motoNome" value="${esc(m.nome)}">
+    <label class="fl">Idade</label>
+    <input class="finput mono" id="motoIdade" type="number" value="${esc(m.idade||'')}" placeholder="Ex.: 28">
+    <label class="fl">Moto (modelo)</label>
+    <input class="finput" id="motoMoto" value="${esc(m.moto||'')}" placeholder="Ex.: Honda CG 160">
+    <label class="fl">Placa</label>
+    <input class="finput" id="motoPlaca" value="${esc(m.placa||'')}" placeholder="Ex.: ABC1D23">
   `,()=>{
     const nome=$('#motoNome').value.trim();if(!nome){toast('Informe o nome','bad');return false;}
-    m.nome=nome;store.save();if(current==='entregas')renderEntregas();toast('Motoboy salvo','good');
+    m.nome=nome;m.idade=$('#motoIdade').value.trim();m.moto=$('#motoMoto').value.trim();m.placa=$('#motoPlaca').value.trim().toUpperCase();
+    store.save();if(current==='entregas')renderEntregas();toast('Motoboy salvo','good');
   });
+}
+function verMotoboy(id){
+  const m=db.motoboys.find(x=>x.id===id);if(!m)return;
+  const emRota=db.vendas.filter(v=>v.canal==='entrega'&&v.motoboyId===id&&v.entregaStatus!=='entregue').length;
+  openModal('Motoboy · '+esc(m.nome),`
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:14px">
+      <span style="color:var(--muted)">Nome</span><b>${esc(m.nome)}</b>
+      <span style="color:var(--muted)">Idade</span><span>${m.idade?esc(m.idade)+' anos':'—'}</span>
+      <span style="color:var(--muted)">Moto</span><span>${m.moto?esc(m.moto):'—'}</span>
+      <span style="color:var(--muted)">Placa</span><span class="mono">${m.placa?esc(m.placa):'—'}</span>
+      <span style="color:var(--muted)">Em rota agora</span><b>${emRota} entrega(s)</b>
+    </div>
+  `,null,`<button class="btn" onclick="editMotoboy('${id}')">Editar</button><button class="cancel" onclick="closeModal()" style="color:var(--accent)">Fechar</button>`);
 }
 function delMotoboy(id){
   confirmModal('Remover motoboy?','As entregas já registradas com ele continuam no histórico.',()=>{
