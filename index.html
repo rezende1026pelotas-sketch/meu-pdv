@@ -336,7 +336,7 @@ label.fl{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
 <div id="authContainer"></div>
 <div class="app" id="appContainer" style="display:none">
   <div class="topbar">
-    <div class="brand"><span class="dot">RZ</span><span id="brandName">RZand</span></div>
+    <div class="brand"><span class="dot" id="brandDot">RZ</span><span id="brandName">RZand</span></div>
     <div class="clock"><b id="clkDate"></b><span id="clkTime"></span></div>
     <div class="center" id="screenName">Início</div>
     <div class="user-info" id="userInfo">
@@ -494,6 +494,7 @@ auth.onAuthStateChanged(async(user)=>{
     document.getElementById('authContainer').style.display='none';
     document.getElementById('appContainer').style.display='flex';
     document.getElementById('brandName').textContent=db.config.nomeLoja;
+    { const bd=document.getElementById('brandDot'); if(bd) bd.textContent=db.config.sigla||'RZ'; }
     go('home');
   }else{
     currentUser=null;
@@ -546,7 +547,7 @@ function seed(){
     {codigo:'1784589799032',dataHora:'20/07/26 20:23',cliente:'PAULO LUIZ BALVER',numero:557,valor:22,fiscal:'Pendente'}
   ];
   return {
-    config:{nomeLoja:'Meu PDV', caixaAbertoEm:Date.now()-4*864e5, expressCheckout:false},
+    config:{nomeLoja:'Meu PDV', caixaAbertoEm:Date.now()-4*864e5, expressCheckout:false, sigla:'RZ', modulos:{entregas:true, mesas:false}},
     vendedor:'PC NOVO',
     produtos, clientes, vendas,
     motoboys:[{id:uid(),nome:'Motoboy 1',idade:'',moto:'',placa:'',ativo:true},{id:uid(),nome:'Motoboy 2',idade:'',moto:'',placa:'',ativo:true}],
@@ -568,6 +569,8 @@ function migrate(d){
   (d.vendas||[]).forEach(v=>{ if(v.ts===undefined) v.ts=0; });
   (d.caixa||[]).forEach(m=>{ if(m.ts===undefined) m.ts=0; });
   if(d.config && d.config.expressCheckout===undefined) d.config.expressCheckout=false;
+  if(d.config && d.config.sigla===undefined) d.config.sigla='RZ';
+  if(d.config && !d.config.modulos) d.config.modulos={entregas:true, mesas:false};
   if(!d.motoboys) d.motoboys=[];
   (d.motoboys||[]).forEach(m=>{ if(m.idade===undefined)m.idade=''; if(m.moto===undefined)m.moto=''; if(m.placa===undefined)m.placa=''; if(m.ativo===undefined)m.ativo=true; });
   (d.vendas||[]).forEach(v=>{ if(v.canal===undefined) v.canal='balcao'; });
@@ -631,9 +634,9 @@ function renderHome(){
       <div class="t">BALCÃO</div><div class="s">Escolha seu cliente e produtos</div>
     </div>
     <div class="home-right">
-      <div class="tile entregas" onclick="go('entregas')">
+      ${db.config.modulos.entregas?`<div class="tile entregas" onclick="go('entregas')">
         <span class="k">E</span><div class="t">ENTREGAS</div><div class="s">${db.vendas.filter(v=>v.canal==='entrega'&&v.entregaStatus!=='entregue').length} em rota · ${db.motoboys.length} motoboys</div>
-      </div>
+      </div>`:''}
       <div class="tile cliente" onclick="openClientePicker('atual')">
         <span class="k">F8</span><div class="t">CLIENTE</div><div class="s">${esc(cli?cli.nome:'Consumidor Final - Padrão')}</div>
       </div>
@@ -666,6 +669,7 @@ function renderHome(){
 let prodFilter='';
 function renderBalcao(){
   const cli=cliente(db.clienteAtualId);
+  if(!db.config.modulos.entregas) canalAtual='balcao';
   const subtotal=cart.reduce((s,i)=>s+i.preco*i.qtd,0);
   const desc=subtotal*descontoPct/100;
   const taxa=(canalAtual==='entrega')?(entregaTaxa||0):0;
@@ -688,10 +692,10 @@ function renderBalcao(){
       <div class="prodgrid" id="prodGrid">${prods.map(prodCardHTML).join('')}</div>
     </div>
     <div class="pdv-right">
-      <div class="canal-seg">
+      ${db.config.modulos.entregas?`<div class="canal-seg">
         <button class="${canalAtual==='balcao'?'on':''}" onclick="setCanal('balcao')">Balcão</button>
         <button class="${canalAtual==='entrega'?'on':''}" onclick="setCanal('entrega')">Entrega</button>
-      </div>
+      </div>`:''}
       ${canalAtual==='entrega'?`
       <div style="background:var(--surface2);border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-bottom:12px">
         <label class="fl" style="margin-top:0">Motoboy</label>
@@ -1947,9 +1951,23 @@ function renderConfig(){
   </div>
   <div class="cfg-grid">
     <div class="cfg-card">
-      <h3>Loja</h3><p>Nome exibido no topo do sistema.</p>
+      <h3>Marca da loja</h3><p>Nome e sigla exibidos no topo do sistema — é o que o cliente vê como "a marca dele".</p>
+      <label class="fl" style="margin-top:0">Nome da loja</label>
       <input class="finput" id="lojaNome" value="${esc(db.config.nomeLoja)}">
-      <button class="btn pri" onclick="db.config.nomeLoja=document.getElementById('lojaNome').value.trim()||'Meu PDV';$('#brandName').textContent=db.config.nomeLoja;store.save();toast('Salvo','good')">Salvar nome</button>
+      <label class="fl">Sigla do topo (até 3 letras)</label>
+      <input class="finput mono" id="lojaSigla" value="${esc(db.config.sigla||'RZ')}" maxlength="3" style="text-transform:uppercase">
+      <button class="btn pri" style="margin-top:10px" onclick="salvarMarca()">Salvar marca</button>
+    </div>
+    <div class="cfg-card">
+      <h3>Módulos ativos</h3><p>Ligue só o que esta conta usa. Reflete na tela inicial e no balcão.</p>
+      <label style="display:flex;align-items:center;gap:10px;padding:9px 0;cursor:pointer">
+        <input type="checkbox" ${db.config.modulos.entregas?'checked':''} onchange="toggleModulo('entregas',this.checked)" style="width:18px;height:18px;accent-color:var(--accent)">
+        <span><b>Entregas</b> — motoboys, rotas e taxa de entrega</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;padding:9px 0;opacity:.55">
+        <input type="checkbox" disabled ${db.config.modulos.mesas?'checked':''} style="width:18px;height:18px">
+        <span><b>Mesas / comandas</b> — em breve</span>
+      </label>
     </div>
     <div class="cfg-card">
       <h3>Backup dos dados</h3><p>Exporte tudo para um arquivo JSON, ou restaure um backup.</p>
@@ -1965,10 +1983,22 @@ function renderConfig(){
       <button class="btn pri" onclick="go('cadastro')">Abrir cadastro de produtos</button>
     </div>
     <div class="cfg-card">
-      <h3>Caixa</h3><p>Reinicia a contagem de dias do caixa aberto.</p>
-      <button class="btn gho" onclick="fecharCaixa()">Fechar caixa</button>
+      <h3>Caixa</h3><p>Abre o fechamento de caixa do período.</p>
+      <button class="btn gho" onclick="go('fechamento')">Abrir fechamento</button>
     </div>
   </div>`;
+}
+function salvarMarca(){
+  db.config.nomeLoja=(document.getElementById('lojaNome').value.trim())||'Meu PDV';
+  db.config.sigla=((document.getElementById('lojaSigla').value.trim())||'RZ').toUpperCase().slice(0,3);
+  $('#brandName').textContent=db.config.nomeLoja;
+  const bd=document.getElementById('brandDot'); if(bd) bd.textContent=db.config.sigla;
+  store.save();toast('Marca salva','good');
+}
+function toggleModulo(nome,val){
+  db.config.modulos[nome]=val;
+  if(!db.config.modulos.entregas && canalAtual==='entrega') canalAtual='balcao';
+  store.save();toast('Módulo '+(val?'ligado':'desligado')+': '+nome,'good');
 }
 function exportJSON(){
   const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
