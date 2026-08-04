@@ -545,7 +545,7 @@ function seed(){
     {codigo:'1784589799032',dataHora:'20/07/26 20:23',cliente:'PAULO LUIZ BALVER',numero:557,valor:22,fiscal:'Pendente'}
   ];
   return {
-    config:{nomeLoja:'Meu PDV', caixaAbertoEm:Date.now()-4*864e5},
+    config:{nomeLoja:'Meu PDV', caixaAbertoEm:Date.now()-4*864e5, expressCheckout:false},
     vendedor:'PC NOVO',
     produtos, clientes, vendas,
     motoboys:[{id:uid(),nome:'Motoboy 1',idade:'',moto:'',placa:'',ativo:true},{id:uid(),nome:'Motoboy 2',idade:'',moto:'',placa:'',ativo:true}],
@@ -562,6 +562,7 @@ function uid(){return Math.random().toString(36).slice(2,10)}
 function migrate(d){
   if(!d) return d;
   if(!d.estoqueMov) d.estoqueMov=[];
+  if(d.config && d.config.expressCheckout===undefined) d.config.expressCheckout=false;
   if(!d.motoboys) d.motoboys=[];
   (d.motoboys||[]).forEach(m=>{ if(m.idade===undefined)m.idade=''; if(m.moto===undefined)m.moto=''; if(m.placa===undefined)m.placa=''; if(m.ativo===undefined)m.ativo=true; });
   (d.vendas||[]).forEach(v=>{ if(v.canal===undefined) v.canal='balcao'; });
@@ -708,6 +709,10 @@ function renderBalcao(){
         ${taxa>0?`<div class="totrow"><span>Taxa de entrega</span><span class="mono">${money(taxa)}</span></div>`:''}
         <div class="totrow big"><span class="lbl">Total</span><span class="val mono">${money(total)}</span></div>
       </div>
+      <label style="display:flex;align-items:center;gap:8px;justify-content:center;margin:2px 0 8px;font-size:12.5px;color:var(--muted);cursor:pointer">
+        <input type="checkbox" ${db.config.expressCheckout?'checked':''} onchange="db.config.expressCheckout=this.checked;store.save();toast(this.checked?'Modo fila ligado':'Modo fila desligado')" style="width:16px;height:16px;accent-color:var(--accent)">
+        Modo fila · pagamento rápido
+      </label>
       <button class="pay-btn" ${cart.length?'':'disabled'} onclick="openPagamento()">PAGAMENTO <span style="opacity:.6;font-size:13px">(F2)</span></button>
     </div>
   </div>`;
@@ -784,11 +789,11 @@ function openPagamento(){
   const total=subtotal*(1-descontoPct/100)+taxa;
   const cli=cliente(db.clienteAtualId);
   const opts=[
-    ['Dinheiro','$','var(--money)','dinheiro'],
-    ['PIX','⚡','var(--teal)','pix'],
-    ['Cartão de crédito','C','var(--blue)','credito'],
-    ['Cartão de débito','D','var(--sky)','debito'],
-    ['Fiado (crédito do cliente)','F','var(--accent)','fiado']
+    ['Dinheiro','$','var(--money)','dinheiro',`abrirRecebimento('dinheiro',${total})`],
+    ['PIX','⚡','var(--teal)','pix',`finalizarVenda('pix',${total},${total})`],
+    ['Cartão de crédito','C','var(--blue)','credito',`finalizarVenda('credito',${total},${total})`],
+    ['Cartão de débito','D','var(--sky)','debito',`finalizarVenda('debito',${total},${total})`],
+    ['Fiado (crédito do cliente)','F','var(--accent)','fiado',`abrirRecebimento('fiado',${total})`]
   ];
   openModal('Pagamento', `
     <div style="text-align:center;margin-bottom:18px">
@@ -796,8 +801,9 @@ function openPagamento(){
       <div class="mono" style="font-size:38px;font-weight:800">${money(total)}</div>
       ${cli&&!cli.nome.startsWith('Consumidor')?`<div style="color:var(--muted);font-size:13px;margin-top:4px">Cliente: <b>${esc(cli.nome)}</b> · Crédito: <span class="mono ${cli.saldo<0?'neg':'pos'}">${money(cli.saldo)}</span></div>`:''}
     </div>
-    ${opts.map(o=>`<button class="pay-opt" onclick="abrirRecebimento('${o[3]}',${total})">
+    ${opts.map(o=>`<button class="pay-opt" onclick="${o[4]}">
       <span class="pi" style="background:${o[2]}22;color:${o[2]}">${o[1]}</span>${o[0]}</button>`).join('')}
+    <div style="text-align:center;color:var(--faint);font-size:12px;margin-top:10px">Cartão e PIX finalizam num toque · Dinheiro abre o troco</div>
   `,null);
 }
 /* tela de recebimento com calculadora */
@@ -943,7 +949,12 @@ function finalizarVenda(metodo,total,recebido){
   cart=[];descontoPct=0;recebVal=0;
   canalAtual='balcao';entregaMotoboyId=null;entregaTaxa=0;entregaEndereco='';
   closeModal();
-  mostrarSucesso(venda,metodo);
+  if(db.config.expressCheckout){
+    toast('Venda #'+venda.numero+' · '+money(venda.valor)+' ('+metodoLabel(metodo)+')','good');
+    go('balcao');
+  }else{
+    mostrarSucesso(venda,metodo);
+  }
   if(alertas.length) setTimeout(()=>toast('Estoque: '+alertas.join(' · '),'bad'),700);
 }
 
