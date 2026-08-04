@@ -113,6 +113,14 @@ input,select{font-family:inherit}
 .tile.vendas{background:linear-gradient(160deg,#3a4653,#48566a)}
 .tile.sangria{background:linear-gradient(160deg,#3a4653,#48566a)}
 .tile.config{background:linear-gradient(160deg,#33404d,#3f5061)}
+.tile.entregas{background:linear-gradient(160deg,#d9772e,#ef8f3c)}
+.canal-seg{display:flex;gap:6px;margin-bottom:12px}
+.canal-seg button{flex:1;padding:11px 8px;border-radius:var(--r2);border:1px solid var(--line);background:var(--surface2);color:var(--muted);font-weight:700;font-size:14px;cursor:pointer}
+.canal-seg button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.moto-chip{display:inline-flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-weight:700;font-size:13px}
+.moto-chip .mx{cursor:pointer;color:var(--muted);font-weight:800}
+.ent-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:10px}
+.ent-badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:800}
 
 /* ---------- Screen header ---------- */
 .scr-head{display:flex;align-items:center;gap:14px;margin-bottom:16px}
@@ -540,6 +548,7 @@ function seed(){
     config:{nomeLoja:'Meu PDV', caixaAbertoEm:Date.now()-4*864e5},
     vendedor:'PC NOVO',
     produtos, clientes, vendas,
+    motoboys:[{id:uid(),nome:'Motoboy 1',ativo:true},{id:uid(),nome:'Motoboy 2',ativo:true}],
     caixa:[], // sangria / reforço
     estoqueMov:[], // movimentações de estoque
     contador:567,
@@ -553,6 +562,8 @@ function uid(){return Math.random().toString(36).slice(2,10)}
 function migrate(d){
   if(!d) return d;
   if(!d.estoqueMov) d.estoqueMov=[];
+  if(!d.motoboys) d.motoboys=[];
+  (d.vendas||[]).forEach(v=>{ if(v.canal===undefined) v.canal='balcao'; });
   (d.produtos||[]).forEach(p=>{
     if(p.estoque===undefined) p.estoque=25;
     if(p.estoqueMin===undefined) p.estoqueMin=5;
@@ -568,6 +579,12 @@ function migrate(d){
 let db = seed(); // placeholder until Firebase loads
 let cart = [];         // itens do balcão atual
 let descontoPct = 0;
+let canalAtual = 'balcao';   // 'balcao' | 'entrega'
+let entregaMotoboyId = null;
+let entregaTaxa = 0;
+let entregaEndereco = '';
+let entFiltroMoto = 'todos';
+let entFiltroStatus = 'rota'; // 'rota' | 'entregue' | 'todas'
 
 /* ============ Helpers ============ */
 const $ = s=>document.querySelector(s);
@@ -581,11 +598,11 @@ function toast(msg,kind){const t=$('#toast');t.className='toast show '+(kind||''
 
 /* ============ Router ============ */
 let current='home';
-const titles={home:'Início',balcao:'Balcão',clientes:'Clientes',credito:'Crédito dos clientes',vendas:'Últimas vendas',sangria:'Sangria / Reforço',cadastro:'Cadastro de Produtos',config:'Configurações'};
+const titles={home:'Início',balcao:'Balcão',entregas:'Entregas',clientes:'Clientes',credito:'Crédito dos clientes',vendas:'Últimas vendas',sangria:'Sangria / Reforço',cadastro:'Cadastro de Produtos',config:'Configurações'};
 function go(v){current=v;$('#screenName').textContent=titles[v];render();window.scrollTo?.(0,0);view.scrollTop=0}
 function render(){
   renderBanner();
-  ({home:renderHome,balcao:renderBalcao,clientes:renderClientes,credito:renderCredito,vendas:renderVendas,sangria:renderSangria,cadastro:renderCadastro,config:renderConfig}[current])();
+  ({home:renderHome,balcao:renderBalcao,entregas:renderEntregas,clientes:renderClientes,credito:renderCredito,vendas:renderVendas,sangria:renderSangria,cadastro:renderCadastro,config:renderConfig}[current])();
 }
 function renderBanner(){
   const b=$('#banner');
@@ -607,6 +624,9 @@ function renderHome(){
       <div class="t">BALCÃO</div><div class="s">Escolha seu cliente e produtos</div>
     </div>
     <div class="home-right">
+      <div class="tile entregas" onclick="go('entregas')">
+        <span class="k">E</span><div class="t">ENTREGAS</div><div class="s">${db.vendas.filter(v=>v.canal==='entrega'&&v.entregaStatus!=='entregue').length} em rota · ${db.motoboys.length} motoboys</div>
+      </div>
       <div class="tile cliente" onclick="openClientePicker('atual')">
         <span class="k">F8</span><div class="t">CLIENTE</div><div class="s">${esc(cli?cli.nome:'Consumidor Final - Padrão')}</div>
       </div>
@@ -638,7 +658,8 @@ function renderBalcao(){
   const cli=cliente(db.clienteAtualId);
   const subtotal=cart.reduce((s,i)=>s+i.preco*i.qtd,0);
   const desc=subtotal*descontoPct/100;
-  const total=subtotal-desc;
+  const taxa=(canalAtual==='entrega')?(entregaTaxa||0):0;
+  const total=subtotal-desc+taxa;
   const prods=db.produtos.filter(p=>p.nome.toLowerCase().includes(prodFilter.toLowerCase()));
   view.innerHTML=`
   <div class="scr-head">
@@ -657,6 +678,22 @@ function renderBalcao(){
       <div class="prodgrid" id="prodGrid">${prods.map(prodCardHTML).join('')}</div>
     </div>
     <div class="pdv-right">
+      <div class="canal-seg">
+        <button class="${canalAtual==='balcao'?'on':''}" onclick="setCanal('balcao')">Balcão</button>
+        <button class="${canalAtual==='entrega'?'on':''}" onclick="setCanal('entrega')">Entrega</button>
+      </div>
+      ${canalAtual==='entrega'?`
+      <div style="background:var(--surface2);border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-bottom:12px">
+        <label class="fl" style="margin-top:0">Motoboy</label>
+        <select class="sel" onchange="entregaMotoboyId=this.value||null">
+          <option value="">— selecionar —</option>
+          ${db.motoboys.filter(m=>m.ativo!==false).map(m=>`<option value="${m.id}" ${entregaMotoboyId===m.id?'selected':''}>${esc(m.nome)}</option>`).join('')}
+        </select>
+        <label class="fl">Taxa de entrega (R$)</label>
+        <input class="finput mono" type="number" step="0.01" value="${entregaTaxa||''}" placeholder="0,00" onchange="entregaTaxa=parseFloat(this.value)||0;renderBalcao()">
+        <label class="fl">Endereço / referência</label>
+        <input class="finput" value="${esc(entregaEndereco)}" placeholder="Rua, nº, bairro" onchange="entregaEndereco=this.value">
+      </div>`:''}
       <div class="customer-row" onclick="openClientePicker('atual')">
         <div class="pi" style="width:38px;height:38px;border-radius:11px;background:var(--surface3);display:grid;place-items:center;font-weight:800;color:var(--muted)">C</div>
         <div class="who"><small>Cliente</small><b>${esc(cli?cli.nome:'Consumidor Final')}</b></div>
@@ -667,6 +704,7 @@ function renderBalcao(){
         <div class="totrow"><span>Desconto</span>
           <span><input class="disc-input mono" id="descInput" value="${descontoPct}" onchange="setDesconto(this.value)">%</span></div>
         <div class="totrow"><span></span><span class="mono neg">${desc>0?'- '+money(desc):''}</span></div>
+        ${taxa>0?`<div class="totrow"><span>Taxa de entrega</span><span class="mono">${money(taxa)}</span></div>`:''}
         <div class="totrow big"><span class="lbl">Total</span><span class="val mono">${money(total)}</span></div>
       </div>
       <button class="pay-btn" ${cart.length?'':'disabled'} onclick="openPagamento()">PAGAMENTO <span style="opacity:.6;font-size:13px">(F2)</span></button>
@@ -741,7 +779,8 @@ function setDesconto(v){descontoPct=Math.max(0,Math.min(100,parseFloat(v)||0));r
 /* pagamento */
 function openPagamento(){
   const subtotal=cart.reduce((s,i)=>s+i.preco*i.qtd,0);
-  const total=subtotal*(1-descontoPct/100);
+  const taxa=(canalAtual==='entrega')?(entregaTaxa||0):0;
+  const total=subtotal*(1-descontoPct/100)+taxa;
   const cli=cliente(db.clienteAtualId);
   const opts=[
     ['Dinheiro','$','var(--money)','dinheiro'],
@@ -871,11 +910,17 @@ function finalizarVenda(metodo,total,recebido){
   if(metodo==='fiado' && (!cli || cli.nome.startsWith('Consumidor'))){
     toast('Selecione um cliente para vender fiado','bad');closeModal();openClientePicker('atual');return;
   }
+  const ent=(canalAtual==='entrega');
   const venda={
     codigo:String(1784590000000+Math.floor(Math.random()*9e5)),
     dataHora:agora(), cliente:cli?cli.nome:'Consumidor Final', clienteId:cli?cli.id:null,
     numero:db.contador++, valor:total, fiscal:'Pendente',
-    metodo, itens:cart.map(i=>({id:i.id,nome:i.nome,qtd:i.qtd,preco:i.preco,obs:i.obs||''}))
+    metodo, itens:cart.map(i=>({id:i.id,nome:i.nome,qtd:i.qtd,preco:i.preco,obs:i.obs||''})),
+    canal:canalAtual,
+    motoboyId: ent?(entregaMotoboyId||null):null,
+    taxa: ent?(entregaTaxa||0):0,
+    endereco: ent?(entregaEndereco||''):'',
+    entregaStatus: ent?'rota':null
   };
   db.vendas.unshift(venda);
   // Baixa de estoque + registro de movimentação
@@ -895,9 +940,147 @@ function finalizarVenda(metodo,total,recebido){
   }
   store.save();
   cart=[];descontoPct=0;recebVal=0;
+  canalAtual='balcao';entregaMotoboyId=null;entregaTaxa=0;entregaEndereco='';
   closeModal();
   mostrarSucesso(venda,metodo);
   if(alertas.length) setTimeout(()=>toast('Estoque: '+alertas.join(' · '),'bad'),700);
+}
+
+/* ============ ENTREGAS / MOTOBOY ============ */
+function setCanal(c){canalAtual=c;if(c!=='entrega'){entregaMotoboyId=null;entregaTaxa=0;entregaEndereco='';}renderBalcao();}
+function motoboyNome(id){const m=(db.motoboys||[]).find(x=>x.id===id);return m?m.nome:'Sem motoboy';}
+function metCor(m){return {dinheiro:'var(--money)',pix:'var(--teal)',credito:'var(--blue)',debito:'var(--sky)',fiado:'var(--accent)'}[m]||'var(--muted)';}
+function setEntFiltroMoto(id){entFiltroMoto=id;renderEntregas();}
+function setEntFiltroStatus(s){entFiltroStatus=s;renderEntregas();}
+
+function renderEntregas(){
+  const todas=db.vendas.filter(v=>v.canal==='entrega');
+  let lista=todas.slice();
+  if(entFiltroStatus==='rota') lista=lista.filter(v=>v.entregaStatus!=='entregue');
+  else if(entFiltroStatus==='entregue') lista=lista.filter(v=>v.entregaStatus==='entregue');
+  if(entFiltroMoto!=='todos') lista=lista.filter(v=>(v.motoboyId||'sem')===entFiltroMoto);
+
+  // resumo por motoboy (sobre a lista filtrada por status)
+  const baseResumo=entFiltroStatus==='rota'?todas.filter(v=>v.entregaStatus!=='entregue')
+                   :entFiltroStatus==='entregue'?todas.filter(v=>v.entregaStatus==='entregue'):todas;
+  const grupos={};
+  baseResumo.forEach(v=>{const k=v.motoboyId||'sem';(grupos[k]=grupos[k]||[]).push(v);});
+  const resumoHTML=Object.keys(grupos).map(k=>{
+    const arr=grupos[k];
+    const dinheiro=arr.filter(v=>v.metodo==='dinheiro').reduce((s,v)=>s+v.valor,0);
+    const online=arr.filter(v=>['pix','credito','debito'].includes(v.metodo)).reduce((s,v)=>s+v.valor,0);
+    const fiado=arr.filter(v=>v.metodo==='fiado').reduce((s,v)=>s+v.valor,0);
+    const taxa=arr.reduce((s,v)=>s+(v.taxa||0),0);
+    return `<div class="ent-card" style="min-width:230px;flex:1">
+      <div style="font-weight:800;font-size:15px;margin-bottom:8px">${esc(k==='sem'?'Sem motoboy':motoboyNome(k))} <span style="color:var(--muted);font-weight:600;font-size:13px">· ${arr.length} entrega(s)</span></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:14px"><span style="color:var(--muted)">Dinheiro (acertar)</span><span class="mono" style="color:var(--money);font-weight:700">${money(dinheiro)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:14px"><span style="color:var(--muted)">Pix / Cartão (pago)</span><span class="mono" style="color:var(--blue);font-weight:700">${money(online)}</span></div>
+      ${fiado>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:14px"><span style="color:var(--muted)">Fiado</span><span class="mono" style="color:var(--accent);font-weight:700">${money(fiado)}</span></div>`:''}
+      <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:14px"><span style="color:var(--muted)">Taxas</span><span class="mono" style="font-weight:700">${money(taxa)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0 0;border-top:1px solid var(--line);margin-top:4px;font-weight:800"><span>Total</span><span class="mono">${money(dinheiro+online+fiado)}</span></div>
+    </div>`;
+  }).join('');
+
+  const cardHTML=lista.map(v=>{
+    const met=v.metodo||'—';
+    const entregue=v.entregaStatus==='entregue';
+    return `<div class="ent-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:180px">
+          <div style="font-weight:800;font-size:15px">#${v.numero} · ${esc(v.cliente)}</div>
+          ${v.endereco?`<div style="color:var(--muted);font-size:13px;margin-top:2px">${esc(v.endereco)}</div>`:''}
+          <div style="color:var(--muted);font-size:13px;margin-top:4px">${(v.itens||[]).length} item(s) · ${v.dataHora||''}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="mono" style="font-weight:800;font-size:17px">${money(v.valor)}</div>
+          ${v.taxa?`<div style="color:var(--muted);font-size:12px">taxa ${money(v.taxa)}</div>`:''}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
+        <span class="ent-badge" style="background:${metCor(met)}22;color:${metCor(met)}">${metodoLabel(met)}</span>
+        <span class="ent-badge" style="background:var(--surface3);color:var(--muted)">${esc(motoboyNome(v.motoboyId))}</span>
+        <span class="ent-badge" style="background:${entregue?'var(--money)22':'#d9772e22'};color:${entregue?'var(--money)':'#d9772e'}">${entregue?'Entregue':'Em rota'}</span>
+        <div style="flex:1"></div>
+        ${entregue
+          ?`<button class="btn" onclick="reabrirEntrega('${v.codigo}')">Reabrir</button>`
+          :`<button class="btn pri" onclick="marcarEntregue('${v.codigo}')">Marcar entregue</button>`}
+      </div>
+    </div>`;
+  }).join('');
+
+  const motoChips=(db.motoboys||[]).map(m=>`<span class="moto-chip">${esc(m.nome)}
+      <span class="mx" title="Editar" onclick="editMotoboy('${m.id}')">✎</span>
+      <span class="mx" title="Remover" onclick="delMotoboy('${m.id}')">✕</span></span>`).join(' ');
+
+  const fBtn=(id,label,cur,fn)=>`<button class="btn ${cur===id?'pri':''}" onclick="${fn}('${id}')">${label}</button>`;
+
+  view.innerHTML=`
+  <div class="scr-head">
+    <button class="back" onclick="go('home')">Voltar<small>ESC</small></button>
+    <div class="scr-title">Entregas</div>
+    <div class="spacer"></div>
+    <button class="btn pri" onclick="addMotoboy()">+ Motoboy</button>
+  </div>
+  <div style="padding:16px;max-width:1100px;margin:0 auto">
+    <div style="margin-bottom:14px">
+      <div style="color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:8px">Motoboys</div>
+      ${motoChips||'<span style="color:var(--muted);font-size:13px">Nenhum motoboy cadastrado. Toque em <b>+ Motoboy</b>.</span>'}
+    </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      ${fBtn('rota','Em rota',entFiltroStatus,'setEntFiltroStatus')}
+      ${fBtn('entregue','Entregues',entFiltroStatus,'setEntFiltroStatus')}
+      ${fBtn('todas','Todas',entFiltroStatus,'setEntFiltroStatus')}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+      ${fBtn('todos','Todos os motoboys',entFiltroMoto,'setEntFiltroMoto')}
+      ${(db.motoboys||[]).map(m=>fBtn(m.id,esc(m.nome),entFiltroMoto,'setEntFiltroMoto')).join('')}
+    </div>
+
+    <div style="color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:10px">Fechamento por motoboy${entFiltroStatus==='rota'?' (em rota)':entFiltroStatus==='entregue'?' (entregues)':''}</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px">${resumoHTML||'<span style="color:var(--muted);font-size:13px">Sem entregas para mostrar.</span>'}</div>
+
+    <div style="color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:10px">Entregas (${lista.length})</div>
+    ${cardHTML||'<div class="ent-card" style="text-align:center;color:var(--muted)">Nenhuma entrega aqui. Faça uma venda no Balcão escolhendo o canal <b>Entrega</b>.</div>'}
+  </div>`;
+}
+
+function marcarEntregue(codigo){
+  const v=db.vendas.find(x=>x.codigo===codigo);if(!v)return;
+  v.entregaStatus='entregue';v.entregueEm=agora();
+  store.save();renderEntregas();toast('Entrega concluída','good');
+}
+function reabrirEntrega(codigo){
+  const v=db.vendas.find(x=>x.codigo===codigo);if(!v)return;
+  v.entregaStatus='rota';store.save();renderEntregas();toast('Entrega reaberta');
+}
+function addMotoboy(){
+  openModal('Adicionar motoboy',`
+    <label class="fl">Nome do motoboy</label>
+    <input class="finput" id="motoNome" placeholder="Nome / apelido">
+  `,()=>{
+    const nome=$('#motoNome').value.trim();if(!nome){toast('Informe o nome','bad');return false;}
+    db.motoboys.push({id:uid(),nome,ativo:true});
+    store.save();if(current==='entregas')renderEntregas();toast('Motoboy adicionado','good');
+  });
+}
+function editMotoboy(id){
+  const m=db.motoboys.find(x=>x.id===id);if(!m)return;
+  openModal('Editar motoboy',`
+    <label class="fl">Nome do motoboy</label>
+    <input class="finput" id="motoNome" value="${esc(m.nome)}">
+  `,()=>{
+    const nome=$('#motoNome').value.trim();if(!nome){toast('Informe o nome','bad');return false;}
+    m.nome=nome;store.save();if(current==='entregas')renderEntregas();toast('Motoboy salvo','good');
+  });
+}
+function delMotoboy(id){
+  confirmModal('Remover motoboy?','As entregas já registradas com ele continuam no histórico.',()=>{
+    db.motoboys=db.motoboys.filter(x=>x.id!==id);
+    if(entregaMotoboyId===id)entregaMotoboyId=null;
+    if(entFiltroMoto===id)entFiltroMoto='todos';
+    store.save();if(current==='entregas')renderEntregas();toast('Motoboy removido');
+  });
 }
 
 /* ============ CLIENTES ============ */
@@ -1612,7 +1795,7 @@ document.addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'){if(e.key==='Enter'&&modalConfirm)doOk();return;}
   const k=e.key.toLowerCase();
   if(current==='home'){
-    if(k==='b')go('balcao');else if(k==='c')go('credito');else if(k==='u')go('vendas');
+    if(k==='b')go('balcao');else if(k==='e')go('entregas');else if(k==='c')go('credito');else if(k==='u')go('vendas');
     else if(k==='s')go('sangria');else if(k==='p')go('cadastro');else if(k==='ç'||k===';')go('config');
     else if(e.key==='F8')openClientePicker('atual');else if(e.key==='F9')trocarVendedor();
   }
