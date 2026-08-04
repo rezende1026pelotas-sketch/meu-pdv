@@ -981,6 +981,7 @@ function renderCredito(){
     <button class="back" onclick="go('home')">Voltar<small>SHIFT + ESC</small></button>
     <div class="scr-title">Crédito dos clientes</div>
     <div class="spacer"></div>
+    <button class="btn gho" onclick="relatorioDevedores()">Devedores (negativos)</button>
     <button class="btn pri" onclick="abrirRelatorioCredito()">Imprimir / PDF do cliente</button>
   </div>
   <div class="credito">
@@ -1116,6 +1117,41 @@ function gerarRelatorioCredito(cid,de,ate){
       <tbody>${linhas}</tbody></table>
     <div class="rp-total">Compras (débito): ${money(somaVendas)} &nbsp;·&nbsp; Créditos: ${money(somaCred)}<br>
       <b style="font-size:15px">Saldo atual: ${money(c.saldo)}</b></div>
+  </div>`);
+}
+/* --- relatório de TODOS os clientes com saldo negativo (fiado a receber) --- */
+function listaDevedores(){
+  return db.clientes
+    .filter(c=>c.saldo < -0.005 && !c.nome.startsWith('Consumidor'))
+    .sort((a,b)=>a.saldo-b.saldo); // maior dívida primeiro
+}
+function relatorioDevedores(){
+  const lista=listaDevedores();
+  if(!lista.length){toast('Nenhum cliente com saldo negativo','good');return;}
+  const total=lista.reduce((s,c)=>s+c.saldo,0);
+  const linhas=lista.map((c,i)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line)">
+    <span>${i+1}. ${esc(c.nome)}</span>
+    <span class="mono" style="font-weight:700;color:var(--danger);white-space:nowrap">${money(Math.abs(c.saldo))}</span></div>`).join('');
+  openModal('Clientes devedores · '+lista.length,`
+    <div style="max-height:46vh;overflow:auto">${linhas}</div>
+    <div style="display:flex;justify-content:space-between;padding:12px 2px 2px;border-top:2px solid var(--text);margin-top:6px;font-weight:800;font-size:16px">
+      <span>Total a receber</span>
+      <span class="mono" style="color:var(--danger)">${money(Math.abs(total))}</span></div>
+  `, null,
+  `<button class="cancel" onclick="closeModal()">Fechar</button><button class="ok" onclick="imprimirDevedores()">Imprimir / PDF</button>`);
+}
+function imprimirDevedores(){
+  const lista=listaDevedores();
+  const total=lista.reduce((s,c)=>s+c.saldo,0);
+  const linhas=lista.map((c,i)=>`<tr><td>${i+1}</td><td>${esc(c.nome)}</td>
+    <td style="text-align:right;font-weight:700">${money(Math.abs(c.saldo))}</td></tr>`).join('');
+  doPrint(`<div class="report">
+    <h2>${esc(db.config.nomeLoja)}</h2>
+    <div class="rp-sub">CLIENTES DEVEDORES · FIADO A RECEBER</div>
+    <div class="rp-meta">Clientes com saldo negativo: <b>${lista.length}</b><br>Emitido em ${agora()}</div>
+    <table class="rp-tbl"><thead><tr><th>#</th><th>Cliente</th><th style="text-align:right">Valor devido</th></tr></thead>
+      <tbody>${linhas}</tbody></table>
+    <div class="rp-total"><b style="font-size:16px">Total a receber: ${money(Math.abs(total))}</b></div>
   </div>`);
 }
 function keyNum(n){credAmount=Math.round((credAmount*10 + n*.01)*100)/100;renderCredito()}
