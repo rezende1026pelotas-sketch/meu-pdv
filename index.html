@@ -115,6 +115,11 @@ input,select{font-family:inherit}
 .tile.config{background:linear-gradient(160deg,#33404d,#3f5061)}
 .tile.entregas{background:linear-gradient(160deg,#d9772e,#ef8f3c)}
 .tile.fechamento{background:linear-gradient(160deg,#2f8f4e,#3aa85e)}
+.tile.mesas{background:linear-gradient(160deg,#6d5bd0,#8272e0)}
+.mesa-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.mesa-card{min-height:120px;display:flex;flex-direction:column;border-radius:var(--r);padding:14px;cursor:pointer;border:2px solid var(--line);background:var(--surface)}
+.mesa-card.livre{border-color:#3aa85e55}
+.mesa-card.ocup{border-color:#ef8f3c;background:#ef8f3c11}
 .canal-seg{display:flex;gap:6px;margin-bottom:12px}
 .canal-seg button{flex:1;padding:11px 8px;border-radius:var(--r2);border:1px solid var(--line);background:var(--surface2);color:var(--muted);font-weight:700;font-size:14px;cursor:pointer}
 .canal-seg button.on{background:var(--accent);border-color:var(--accent);color:#fff}
@@ -551,6 +556,7 @@ function seed(){
     vendedor:'PC NOVO',
     produtos, clientes, vendas,
     motoboys:[{id:uid(),nome:'Motoboy 1',idade:'',moto:'',placa:'',ativo:true},{id:uid(),nome:'Motoboy 2',idade:'',moto:'',placa:'',ativo:true}],
+    mesas:[1,2,3,4,5,6].map(n=>({id:uid(),nome:'Mesa '+n,comanda:[],aberta:false,abertaEm:null})),
     caixa:[], // sangria / reforço
     fechamentos:[], // histórico de fechamentos de caixa
     estoqueMov:[], // movimentações de estoque
@@ -566,6 +572,7 @@ function migrate(d){
   if(!d) return d;
   if(!d.estoqueMov) d.estoqueMov=[];
   if(!d.fechamentos) d.fechamentos=[];
+  if(!d.mesas) d.mesas=[];
   (d.vendas||[]).forEach(v=>{ if(v.ts===undefined) v.ts=0; });
   (d.caixa||[]).forEach(m=>{ if(m.ts===undefined) m.ts=0; });
   if(d.config && d.config.expressCheckout===undefined) d.config.expressCheckout=false;
@@ -595,6 +602,7 @@ let entregaTaxa = 0;
 let entregaEndereco = '';
 let entFiltroMoto = 'todos';
 let entFiltroStatus = 'rota'; // 'rota' | 'entregue' | 'todas'
+let mesaAtual = null; // id da mesa aberta no balcão, ou null
 
 /* ============ Helpers ============ */
 const $ = s=>document.querySelector(s);
@@ -608,11 +616,11 @@ function toast(msg,kind){const t=$('#toast');t.className='toast show '+(kind||''
 
 /* ============ Router ============ */
 let current='home';
-const titles={home:'Início',balcao:'Balcão',entregas:'Entregas',fechamento:'Fechamento de caixa',clientes:'Clientes',credito:'Crédito dos clientes',vendas:'Últimas vendas',sangria:'Sangria / Reforço',cadastro:'Cadastro de Produtos',config:'Configurações'};
-function go(v){current=v;$('#screenName').textContent=titles[v];render();window.scrollTo?.(0,0);view.scrollTop=0}
+const titles={home:'Início',balcao:'Balcão',mesas:'Mesas',entregas:'Entregas',fechamento:'Fechamento de caixa',clientes:'Clientes',credito:'Crédito dos clientes',vendas:'Últimas vendas',sangria:'Sangria / Reforço',cadastro:'Cadastro de Produtos',config:'Configurações'};
+function go(v){if(v!=='balcao'&&mesaAtual){mesaAtual=null;cart=[];}current=v;$('#screenName').textContent=titles[v];render();window.scrollTo?.(0,0);view.scrollTop=0}
 function render(){
   renderBanner();
-  ({home:renderHome,balcao:renderBalcao,entregas:renderEntregas,fechamento:renderFechamento,clientes:renderClientes,credito:renderCredito,vendas:renderVendas,sangria:renderSangria,cadastro:renderCadastro,config:renderConfig}[current])();
+  ({home:renderHome,balcao:renderBalcao,mesas:renderMesas,entregas:renderEntregas,fechamento:renderFechamento,clientes:renderClientes,credito:renderCredito,vendas:renderVendas,sangria:renderSangria,cadastro:renderCadastro,config:renderConfig}[current])();
 }
 function renderBanner(){
   const b=$('#banner');
@@ -634,6 +642,9 @@ function renderHome(){
       <div class="t">BALCÃO</div><div class="s">Escolha seu cliente e produtos</div>
     </div>
     <div class="home-right">
+      ${db.config.modulos.mesas?`<div class="tile mesas" onclick="go('mesas')">
+        <span class="k">M</span><div class="t">MESAS</div><div class="s">${(db.mesas||[]).filter(m=>m.aberta&&(m.comanda||[]).length).length} ocupada(s) · ${(db.mesas||[]).length} no total</div>
+      </div>`:''}
       ${db.config.modulos.entregas?`<div class="tile entregas" onclick="go('entregas')">
         <span class="k">E</span><div class="t">ENTREGAS</div><div class="s">${db.vendas.filter(v=>v.canal==='entrega'&&v.entregaStatus!=='entregue').length} em rota · ${db.motoboys.length} motoboys</div>
       </div>`:''}
@@ -677,9 +688,10 @@ function renderBalcao(){
   const prods=db.produtos.filter(p=>p.nome.toLowerCase().includes(prodFilter.toLowerCase()));
   view.innerHTML=`
   <div class="scr-head">
-    <button class="back" onclick="go('home')">Voltar<small>SHIFT + ESC</small></button>
-    <div class="scr-title">Balcão · ${esc(cli?cli.nome:'Consumidor Final')}</div>
+    <button class="back" onclick="${mesaAtual?'voltarMesas()':"go('home')"}">Voltar<small>${mesaAtual?'às mesas':'SHIFT + ESC'}</small></button>
+    <div class="scr-title">${mesaAtual?('Mesa · '+esc(mesaNome())):('Balcão · '+esc(cli?cli.nome:'Consumidor Final'))}</div>
     <div class="spacer"></div>
+    ${mesaAtual?`<button class="btn" onclick="imprimirComanda()">Imprimir comanda</button>`:''}
     <div class="pill" style="margin:0">Vendedor: ${esc(db.vendedor)}</div>
   </div>
   <div class="pdv">
@@ -725,7 +737,7 @@ function renderBalcao(){
         <input type="checkbox" ${db.config.expressCheckout?'checked':''} onchange="db.config.expressCheckout=this.checked;store.save();toast(this.checked?'Modo fila ligado':'Modo fila desligado')" style="width:16px;height:16px;accent-color:var(--accent)">
         Modo fila · pagamento rápido
       </label>
-      <button class="pay-btn" ${cart.length?'':'disabled'} onclick="openPagamento()">PAGAMENTO <span style="opacity:.6;font-size:13px">(F2)</span></button>
+      <button class="pay-btn" ${cart.length?'':'disabled'} onclick="openPagamento()">${mesaAtual?'FECHAR MESA':'PAGAMENTO'} <span style="opacity:.6;font-size:13px">(F2)</span></button>
     </div>
   </div>`;
 }
@@ -774,7 +786,7 @@ function editObs(ix){
     <label class="fl">Observação do produto (ex.: dividido em 2, sem gelo, etc.)</label>
     <input class="finput" id="obsText" value="${esc(i.obs||'')}" placeholder="Digite a observação…">
   `,()=>{
-    i.obs=$('#obsText').value.trim();renderBalcao();toast('Observação salva','good');
+    i.obs=$('#obsText').value.trim();syncMesa();renderBalcao();toast('Observação salva','good');
   });
 }
 function addToCart(pid){
@@ -784,14 +796,14 @@ function addToCart(pid){
   if(p.controla && noCarrinho+1>p.estoque)
     toast(`Estoque insuficiente · ${p.estoque} un. de ${p.nome}`,'bad');
   if(ex)ex.qtd++;else cart.push({id:p.id,nome:p.nome,preco:p.preco,qtd:1,obs:''});
-  renderBalcao();
+  syncMesa();renderBalcao();
 }
 function chgQtd(ix,d){
   const it=cart[ix],p=db.produtos.find(x=>x.id===it.id);
   if(d>0 && p && p.controla && it.qtd+1>p.estoque) toast(`Estoque insuficiente · ${p.estoque} un.`,'bad');
-  it.qtd+=d;if(it.qtd<=0)cart.splice(ix,1);renderBalcao();
+  it.qtd+=d;if(it.qtd<=0)cart.splice(ix,1);syncMesa();renderBalcao();
 }
-function rmItem(ix){cart.splice(ix,1);renderBalcao()}
+function rmItem(ix){cart.splice(ix,1);syncMesa();renderBalcao()}
 function setDesconto(v){descontoPct=Math.max(0,Math.min(100,parseFloat(v)||0));renderBalcao()}
 
 /* pagamento */
@@ -929,6 +941,7 @@ function finalizarVenda(metodo,total,recebido){
   if(metodo==='fiado' && (!cli || cli.nome.startsWith('Consumidor'))){
     toast('Selecione um cliente para vender fiado','bad');closeModal();openClientePicker('atual');return;
   }
+  const mesaObj = mesaAtual ? db.mesas.find(x=>x.id===mesaAtual) : null;
   const ent=(canalAtual==='entrega');
   const venda={
     codigo:String(1784590000000+Math.floor(Math.random()*9e5)),
@@ -936,7 +949,8 @@ function finalizarVenda(metodo,total,recebido){
     dataHora:agora(), cliente:cli?cli.nome:'Consumidor Final', clienteId:cli?cli.id:null,
     numero:db.contador++, valor:total, fiscal:'Pendente',
     metodo, itens:cart.map(i=>({id:i.id,nome:i.nome,qtd:i.qtd,preco:i.preco,obs:i.obs||''})),
-    canal:canalAtual,
+    canal: mesaObj?'mesa':canalAtual,
+    mesa: mesaObj?mesaObj.nome:null,
     motoboyId: ent?(entregaMotoboyId||null):null,
     taxa: ent?(entregaTaxa||0):0,
     endereco: ent?(entregaEndereco||''):'',
@@ -958,11 +972,17 @@ function finalizarVenda(metodo,total,recebido){
     cli.saldo-=total;
     cli.historico.unshift({data:hoje(),valor:-total,op:'Venda',vendaNum:venda.numero});
   }
+  if(mesaObj){ mesaObj.comanda=[]; mesaObj.aberta=false; mesaObj.abertaEm=null; }
   store.save();
   cart=[];descontoPct=0;recebVal=0;
   canalAtual='balcao';entregaMotoboyId=null;entregaTaxa=0;entregaEndereco='';
+  const eraMesa=!!mesaObj;
+  mesaAtual=null;
   closeModal();
-  if(db.config.expressCheckout){
+  if(eraMesa){
+    toast('Mesa fechada · '+money(venda.valor)+' ('+metodoLabel(metodo)+')','good');
+    go('mesas');
+  }else if(db.config.expressCheckout){
     toast('Venda #'+venda.numero+' · '+money(venda.valor)+' ('+metodoLabel(metodo)+')','good');
     go('balcao');
   }else{
@@ -1843,6 +1863,94 @@ function verFechamento(i){
   `,null,`<button class="btn" onclick="imprimirFechamento(db.fechamentos[${i}])">Imprimir</button><button class="cancel" onclick="closeModal()" style="color:var(--accent)">Fechar</button>`);
 }
 
+/* ============ MESAS / COMANDAS ============ */
+function mesaNome(){const m=mesaAtual?db.mesas.find(x=>x.id===mesaAtual):null;return m?m.nome:'';}
+function syncMesa(){
+  if(!mesaAtual)return;
+  const m=db.mesas.find(x=>x.id===mesaAtual);
+  if(m){m.comanda=cart.map(i=>({...i}));m.aberta=cart.length>0;if(cart.length&&!m.abertaEm)m.abertaEm=Date.now();if(!cart.length)m.abertaEm=null;store.save();}
+}
+function abrirMesa(id){
+  const m=db.mesas.find(x=>x.id===id);if(!m)return;
+  mesaAtual=id;
+  cart=(m.comanda||[]).map(i=>({...i}));
+  descontoPct=0;canalAtual='balcao';recebVal=0;
+  go('balcao');
+}
+function voltarMesas(){ syncMesa(); mesaAtual=null; cart=[]; go('mesas'); }
+function imprimirComanda(){
+  const m=mesaAtual?db.mesas.find(x=>x.id===mesaAtual):null;if(!m)return;
+  const linhas=cart.map(i=>`<tr><td>${i.qtd}x ${esc(i.nome)}${i.obs?' ('+esc(i.obs)+')':''}</td><td style="text-align:right">${money(i.preco*i.qtd)}</td></tr>`).join('')||'<tr><td colspan="2" style="color:#666">Sem itens</td></tr>';
+  const tot=cart.reduce((s,i)=>s+i.preco*i.qtd,0);
+  doPrint(`<div class="receipt"><h2>${esc(db.config.nomeLoja)}</h2><div class="rc-sub">Comanda · ${esc(m.nome)}</div><div class="rc-line">${agora()}</div><hr><table class="rc-tbl">${linhas}</table><hr><table class="rc-tbl"><tr><td><b>TOTAL PARCIAL</b></td><td style="text-align:right"><b>${money(tot)}</b></td></tr></table><div class="rc-foot">Comanda — não é documento fiscal</div></div>`);
+}
+function renderMesas(){
+  const mesas=db.mesas||[];
+  const cards=mesas.map(m=>{
+    const tot=(m.comanda||[]).reduce((s,i)=>s+i.preco*i.qtd,0);
+    const ocupada=m.aberta && (m.comanda||[]).length>0;
+    const min=m.abertaEm?Math.floor((Date.now()-m.abertaEm)/60000):0;
+    return `<div class="mesa-card ${ocupada?'ocup':'livre'}" onclick="abrirMesa('${m.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="font-weight:800;font-size:17px">${esc(m.nome)}</div>
+        <span class="mx" style="cursor:pointer;color:var(--muted);font-weight:800" title="Editar" onclick="event.stopPropagation();editMesa('${m.id}')">✎</span>
+      </div>
+      ${ocupada
+        ? `<div style="margin-top:auto"><div class="mono" style="font-size:22px;font-weight:800;color:#ef8f3c">${money(tot)}</div>
+           <div style="font-size:12px;color:var(--muted)">${(m.comanda||[]).length} item(s) · há ${min} min</div></div>`
+        : `<div style="margin-top:auto;color:var(--money);font-weight:700;font-size:14px">Livre</div>`}
+    </div>`;
+  }).join('');
+  view.innerHTML=`
+  <div class="scr-head">
+    <button class="back" onclick="go('home')">Voltar<small>ESC</small></button>
+    <div class="scr-title">Mesas</div>
+    <div class="spacer"></div>
+    ${mesas.length?`<button class="btn pri" onclick="addMesa()">+ Mesa</button>`:''}
+  </div>
+  <div style="padding:16px">
+    ${mesas.length? `<div class="mesa-grid">${cards}</div>` :
+      `<div class="ent-card" style="text-align:center;max-width:420px;margin:40px auto">
+        <div style="color:var(--muted);margin-bottom:14px">Nenhuma mesa cadastrada ainda.</div>
+        <button class="btn pri" onclick="criarMesasPadrao()">Criar mesas 1 a 8</button>
+        <div style="margin-top:10px"><button class="btn gho" onclick="addMesa()">+ Adicionar uma mesa</button></div>
+      </div>`}
+  </div>`;
+}
+function criarMesasPadrao(){
+  for(let n=1;n<=8;n++) db.mesas.push({id:uid(),nome:'Mesa '+n,comanda:[],aberta:false,abertaEm:null});
+  store.save();renderMesas();toast('8 mesas criadas','good');
+}
+function addMesa(){
+  openModal('Adicionar mesa',`
+    <label class="fl" style="margin-top:0">Nome / número da mesa</label>
+    <input class="finput" id="mesaNomeIn" placeholder="Ex.: Mesa 9 ou Varanda">
+  `,()=>{
+    const nome=$('#mesaNomeIn').value.trim();if(!nome){toast('Informe o nome','bad');return false;}
+    db.mesas.push({id:uid(),nome,comanda:[],aberta:false,abertaEm:null});
+    store.save();if(current==='mesas')renderMesas();toast('Mesa criada','good');
+  });
+}
+function editMesa(id){
+  const m=db.mesas.find(x=>x.id===id);if(!m)return;
+  openModal('Editar mesa',`
+    <label class="fl" style="margin-top:0">Nome / número</label>
+    <input class="finput" id="mesaNomeIn" value="${esc(m.nome)}">
+    ${(m.comanda||[]).length?`<p style="color:var(--muted);font-size:13px;margin:10px 0 0">Esta mesa tem uma comanda aberta com ${(m.comanda||[]).length} item(s).</p>`:''}
+  `,()=>{
+    const nome=$('#mesaNomeIn').value.trim();if(!nome){toast('Informe o nome','bad');return false;}
+    m.nome=nome;store.save();renderMesas();toast('Mesa salva','good');
+  },`<button class="btn dan" onclick="delMesa('${id}')">Excluir</button><div style="flex:1"></div><button class="cancel" onclick="closeModal()">Cancelar</button><button class="ok" onclick="doOk()">Confirmar</button>`);
+}
+function delMesa(id){
+  const m=db.mesas.find(x=>x.id===id);
+  if(m && (m.comanda||[]).length>0){toast('Feche a comanda antes de excluir a mesa','bad');return;}
+  closeModal();
+  confirmModal('Excluir mesa?','A mesa será removida da lista.',()=>{
+    db.mesas=db.mesas.filter(x=>x.id!==id);store.save();renderMesas();toast('Mesa excluída');
+  });
+}
+
 /* ============ CADASTRO DE PRODUTOS + ESTOQUE ============ */
 let cadFiltro='', cadEstoque='todos';
 function baixos(){return db.produtos.filter(p=>p.controla&&p.estoque>0&&p.estoque<=p.estoqueMin)}
@@ -1964,9 +2072,9 @@ function renderConfig(){
         <input type="checkbox" ${db.config.modulos.entregas?'checked':''} onchange="toggleModulo('entregas',this.checked)" style="width:18px;height:18px;accent-color:var(--accent)">
         <span><b>Entregas</b> — motoboys, rotas e taxa de entrega</span>
       </label>
-      <label style="display:flex;align-items:center;gap:10px;padding:9px 0;opacity:.55">
-        <input type="checkbox" disabled ${db.config.modulos.mesas?'checked':''} style="width:18px;height:18px">
-        <span><b>Mesas / comandas</b> — em breve</span>
+      <label style="display:flex;align-items:center;gap:10px;padding:9px 0;cursor:pointer">
+        <input type="checkbox" ${db.config.modulos.mesas?'checked':''} onchange="toggleModulo('mesas',this.checked)" style="width:18px;height:18px;accent-color:var(--accent)">
+        <span><b>Mesas / comandas</b> — abre, acumula itens e fecha num toque</span>
       </label>
     </div>
     <div class="cfg-card">
@@ -2035,7 +2143,7 @@ document.addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'){if(e.key==='Enter'&&modalConfirm)doOk();return;}
   const k=e.key.toLowerCase();
   if(current==='home'){
-    if(k==='b')go('balcao');else if(k==='e')go('entregas');else if(k==='f')go('fechamento');else if(k==='c')go('credito');else if(k==='u')go('vendas');
+    if(k==='b')go('balcao');else if(k==='m'&&db.config.modulos.mesas)go('mesas');else if(k==='e')go('entregas');else if(k==='f')go('fechamento');else if(k==='c')go('credito');else if(k==='u')go('vendas');
     else if(k==='s')go('sangria');else if(k==='p')go('cadastro');else if(k==='ç'||k===';')go('config');
     else if(e.key==='F8')openClientePicker('atual');else if(e.key==='F9')trocarVendedor();
   }
