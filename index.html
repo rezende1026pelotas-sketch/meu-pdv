@@ -335,6 +335,61 @@ label.fl{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
   .cfg-grid{grid-template-columns:1fr}
   .topbar .center{display:none}
 }
+
+/* ---------- RZand+ : atalhos, garçom, QR, cozinha ---------- */
+.fbar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;gap:4px;flex-wrap:wrap;background:#0b0e12;border-top:1px solid var(--line);padding:6px 10px}
+.fbar button{font-size:11.5px;font-weight:700;color:var(--muted);padding:5px 8px;border-radius:7px;background:var(--surface2);border:1px solid var(--line)}
+.fbar button:hover{color:var(--text);border-color:var(--accent)}
+.fbar button b{color:var(--accent);margin-right:4px}
+.view.com-fbar{padding-bottom:62px}
+.itn{display:inline-grid;place-items:center;min-width:20px;height:20px;border-radius:6px;background:var(--surface3);color:var(--muted);font-size:11px;font-weight:800;margin-right:7px}
+.envk{font-size:10.5px;color:var(--money);font-weight:700;margin-left:6px}
+.ped-badge{display:none;align-items:center;gap:6px;background:var(--danger);color:#fff;font-weight:800;font-size:12.5px;padding:7px 12px;border-radius:20px;animation:rzpulse 1.4s infinite;white-space:nowrap}
+.ped-badge.on{display:flex}
+@keyframes rzpulse{50%{box-shadow:0 0 0 6px rgba(255,90,90,.25)}}
+.mtag{display:inline-block;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:6px;margin-top:6px;margin-right:4px}
+.mtag.conta{background:var(--danger);color:#fff}
+.mtag.qr{background:var(--blue);color:#fff}
+.aux{height:100vh;overflow:auto;background:var(--bg);-webkit-overflow-scrolling:touch}
+.aux-top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:12px 14px;background:#0b0e12;border-bottom:1px solid var(--line)}
+.aux-top .ttl{font-weight:800;font-size:16px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aux-top .sg{width:34px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#ff9d5c);display:grid;place-items:center;font-size:13px;color:#1a1005;font-weight:800;flex:0 0 auto}
+.aux-body{padding:14px;padding-bottom:110px;max-width:900px;margin:0 auto}
+.alert-row{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--danger);border-radius:var(--r2);padding:10px 12px;margin-bottom:8px;font-size:14px}
+.alert-row .grow{flex:1;min-width:0}
+.g-prod{display:flex;align-items:center;gap:10px;padding:12px;border-bottom:1px solid var(--line);cursor:pointer}
+.g-prod:last-child{border-bottom:none}
+.g-prod .nm{flex:1;font-weight:600;font-size:14.5px;min-width:0}
+.g-prod .ds{font-weight:500;font-size:12.5px;color:var(--muted);margin-top:2px}
+.g-prod .pr{color:var(--money);font-weight:700;font-size:14px;white-space:nowrap}
+.g-prod .add{width:36px;height:36px;border-radius:10px;background:var(--accent);color:#1a1005;font-weight:800;font-size:20px;display:grid;place-items:center;flex:0 0 auto}
+.g-prod.off{opacity:.45;pointer-events:none}
+.cats{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:8px}
+.cats .chip{white-space:nowrap}
+.sticky-bar{position:fixed;left:0;right:0;bottom:0;z-index:6;padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:#0b0e12;border-top:1px solid var(--line);display:flex;gap:10px}
+.sticky-bar .big{flex:1;padding:16px;border-radius:var(--r2);background:var(--accent);color:#1a1005;font-weight:800;font-size:16px}
+.sticky-bar .big:disabled{opacity:.4;cursor:not-allowed}
+.sec-t{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin:16px 0 8px}
+.k-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:10px}
+.k-card.novo{border-color:var(--accent)}
+.ticket{font-family:'Spline Sans Mono',monospace;color:#000;width:72mm;margin:0}
+.ticket h1{font-size:24px;margin:0;text-align:center}
+.ticket .tk-sub{text-align:center;font-size:12px;margin:2px 0 4px}
+.ticket .tk-it{font-size:17px;font-weight:700;margin:6px 0}
+.ticket .tk-obs{font-size:14px;font-weight:700;margin:-2px 0 6px 18px}
+.ticket hr{border:none;border-top:2px dashed #000;margin:6px 0}
+.qr-sheet{display:grid;grid-template-columns:1fr 1fr;gap:18px;font-family:'Plus Jakarta Sans',sans-serif;color:#000}
+.qr-sheet .qc{border:2px solid #000;border-radius:14px;padding:16px;text-align:center;page-break-inside:avoid;break-inside:avoid}
+.qr-sheet img{width:200px;height:200px;margin:10px auto;display:block}
+.cfg-card details summary{cursor:pointer;font-weight:700;font-size:13px;color:var(--muted)}
+.cfg-card ol{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--muted);line-height:1.55}
+.cfg-chk{display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer;font-size:14px}
+.cfg-chk input{width:18px;height:18px;accent-color:var(--accent);flex:0 0 auto}
+/* toast nunca bloqueia toque; sobe acima da barra fixa no celular */
+.toast{pointer-events:none}
+body.aux-mode .toast{bottom:96px;max-width:92vw;text-align:center}
+@media print{ body>#authContainer{display:none!important} }
+@media(max-width:820px){ .fbar{display:none} .view.com-fbar{padding-bottom:16px} }
 </style>
 </head>
 <body>
@@ -375,11 +430,12 @@ let currentUser = null;
 let saveTimer = null;
 const store = {
   save(){
-    if(!currentUser) return;
+    if(!currentUser || MODO!=='caixa') return;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(()=>{
       fsdb.collection('empresas').doc(currentUser.uid).set({dados: JSON.stringify(db)},{merge:true})
         .catch(e=>console.error('Erro ao salvar:',e));
+      try{publicarCardapio()}catch(e){}
     }, 800); // debounce de 800ms
   },
   async load(){
@@ -411,6 +467,12 @@ function showLogin(){
       <input class="finput" id="authEmail" type="email" placeholder="seu@email.com">
       <label class="fl">Senha</label>
       <input class="finput" id="authPass" type="password" placeholder="Sua senha">
+      <label class="fl">Usar este aparelho como</label>
+      <select class="sel" id="authModo">
+        <option value="caixa" ${MODO==='caixa'?'selected':''}>Caixa / PDV (completo)</option>
+        <option value="garcom" ${MODO==='garcom'?'selected':''}>Garçom (celular)</option>
+        <option value="cozinha" ${MODO==='cozinha'?'selected':''}>Estação da cozinha (impressora)</option>
+      </select>
       <button class="auth-btn" onclick="doLogin()">Entrar</button>
       <div class="switch">Não tem conta? <a onclick="showRegister()">Criar conta</a></div>
     </div></div>`;
@@ -451,6 +513,7 @@ async function doLogin(){
   const pass=document.getElementById('authPass').value;
   if(!email||!pass){authError('Preencha e-mail e senha.');return;}
   authError('');
+  { const md=document.getElementById('authModo'); if(md){ MODO=md.value; lsSet('rz_modo',MODO); } }
   try{await auth.signInWithEmailAndPassword(email,pass);}
   catch(e){authError(firebaseErrorPT(e.code));}
 }
@@ -482,8 +545,10 @@ function seedComNome(nome){
 
 /* listener de auth — controla tudo */
 auth.onAuthStateChanged(async(user)=>{
+  if(MODO==='qr') return;
   if(user){
     currentUser=user;
+    if(MODO==='garcom'||MODO==='cozinha'){ iniciarModoAuxiliar(); return; }
     showLoading('Carregando dados...');
     const dados=await store.load();
     db = dados ? migrate(dados) : seedComNome(user.email);
@@ -501,8 +566,10 @@ auth.onAuthStateChanged(async(user)=>{
     document.getElementById('brandName').textContent=db.config.nomeLoja;
     { const bd=document.getElementById('brandDot'); if(bd) bd.textContent=db.config.sigla||'RZ'; }
     go('home');
+    iniciarCaixaExtras();
   }else{
     currentUser=null;
+    pararListeners();
     document.getElementById('appContainer').style.display='none';
     showLogin();
   }
@@ -737,7 +804,7 @@ function renderBalcao(){
         <input type="checkbox" ${db.config.expressCheckout?'checked':''} onchange="db.config.expressCheckout=this.checked;store.save();toast(this.checked?'Modo fila ligado':'Modo fila desligado')" style="width:16px;height:16px;accent-color:var(--accent)">
         Modo fila · pagamento rápido
       </label>
-      <button class="pay-btn" ${cart.length?'':'disabled'} onclick="openPagamento()">${mesaAtual?'FECHAR MESA':'PAGAMENTO'} <span style="opacity:.6;font-size:13px">(F2)</span></button>
+      <button class="pay-btn" ${cart.length?'':'disabled'} onclick="openPagamento()">${mesaAtual?'FECHAR MESA':'PAGAMENTO'} <span style="opacity:.6;font-size:13px">(F3)</span></button>
     </div>
   </div>`;
 }
@@ -771,7 +838,7 @@ function cartHTML(){
       <th>Produto</th><th>Qnt.</th><th class="right-num">Valor unit.</th><th class="right-num">Total</th><th></th><th></th>
     </tr></thead><tbody>
     ${cart.map((i,ix)=>`<tr>
-      <td>${esc(i.nome)}${i.obs?`<div style="color:var(--accent);font-size:11px;margin-top:2px">Obs: ${esc(i.obs)}</div>`:''}</td>
+      <td><span class="itn">${ix+1}</span>${esc(i.nome)}${i.desc?`<span class="envk" style="color:var(--accent)">desc. ${money(i.desc)}</span>`:''}${(i.env&&i.env>=i.qtd&&db.config.modulos.cozinha)?'<span class="envk">✓ cozinha</span>':''}${i.obs?`<div style="color:var(--accent);font-size:11px;margin-top:2px">Obs: ${esc(i.obs)}</div>`:''}</td>
       <td><div class="qtybox"><button onclick="chgQtd(${ix},-1)">−</button><b class="mono">${i.qtd}</b><button onclick="chgQtd(${ix},1)">+</button></div></td>
       <td class="right-num mono">${money(i.preco)}</td>
       <td class="right-num mono">${money(i.preco*i.qtd)}</td>
@@ -2010,12 +2077,13 @@ function editProduto(id){
       <input type="checkbox" id="pCtrl" ${(!p||p.controla)?'checked':''} style="width:18px;height:18px">
       Controlar estoque <span style="color:var(--faint);font-size:12px">(desmarque p/ itens feitos na hora)</span>
     </label>
+    ${prodExtrasHTML(p)}
   `,()=>{
     const nome=$('#pNome').value.trim();const preco=parseFloat($('#pPreco').value);
     if(!nome||isNaN(preco)){toast('Preencha nome e valor','bad');return false;}
     const dados={nome,preco,estoque:parseInt($('#pEst').value)||0,estoqueMin:parseInt($('#pMin').value)||0,
       controla:$('#pCtrl').checked,marca:$('#pMarca').value.trim(),peso:$('#pPeso').value.trim(),
-      unidade:$('#pUni').value,codigoBarras:$('#pCod').value.trim()};
+      unidade:$('#pUni').value,codigoBarras:$('#pCod').value.trim(),...prodExtrasDados()};
     if(p){Object.assign(p,dados);
       // reflete no carrinho aberto (valor novo já sai na nota)
       cart.forEach(it=>{if(it.id===p.id){it.nome=p.nome;it.preco=p.preco;}});
@@ -2157,9 +2225,911 @@ function tick(){const d=new Date();const p=n=>String(n).padStart(2,'0');
   $('#clkTime').textContent=`${p(d.getHours())}:${p(d.getMinutes())}`;}
 tick();setInterval(tick,1000*20);
 
+
+/* =====================================================================
+   RZand+ — Atalhos F1–F12, Garçom no celular, QR Code na mesa,
+   Impressão de cozinha e NFC-e (preparada)
+   ===================================================================== */
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+const QS=new URLSearchParams(location.search);
+const QR_LOJA=QS.get('loja'), QR_MESA=QS.get('mesa');
+if(QS.get('modo')&&['caixa','garcom','cozinha'].includes(QS.get('modo'))) lsSet('rz_modo',QS.get('modo'));
+let MODO = QR_LOJA ? 'qr' : (['garcom','cozinha'].includes(lsGet('rz_modo'))?lsGet('rz_modo'):'caixa');
+const DEVICE_ID = lsGet('rz_device') || (()=>{const d='dev-'+uid();lsSet('rz_device',d);return d;})();
+let unsubs=[];
+function pararListeners(){unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[];impUnsub=null;}
+function baseURL(){return location.origin+location.pathname;}
+function soDig(s){return String(s||'').replace(/\D/g,'');}
+function r2(v){return Math.round((Number(v)||0)*100)/100;}
+function colPedidos(loja){return fsdb.collection('empresas').doc(loja||currentUser.uid).collection('pedidos');}
+function horaDe(ts){const d=new Date(ts||Date.now());const p=n=>String(n).padStart(2,'0');return p(d.getHours())+':'+p(d.getMinutes());}
+function beep(n){try{const C=window.AudioContext||window.webkitAudioContext;const a=beep.ctx||(beep.ctx=new C());
+  for(let i=0;i<(n||2);i++){const o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.value=880;o.connect(g);g.connect(a.destination);
+    const t=a.currentTime+i*0.25;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.3,t+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+0.2);o.start(t);o.stop(t+0.22);}}catch(e){}}
+function cozinhaOn(){return !!(db.config&&db.config.modulos&&db.config.modulos.cozinha);}
+
+/* ---------- migração dos novos campos ---------- */
+const _migrateBase=migrate;
+migrate=function(d){
+  d=_migrateBase(d); if(!d) return d;
+  d.config=d.config||{};
+  d.config.modulos=d.config.modulos||{};
+  if(d.config.modulos.cozinha===undefined) d.config.modulos.cozinha=false;
+  if(d.config.qrAprovacao===undefined) d.config.qrAprovacao=true;
+  if(d.config.pinGerente===undefined) d.config.pinGerente='';
+  if(d.config.cozinhaBalcao===undefined) d.config.cozinhaBalcao=true;
+  const F=d.config.fiscal||(d.config.fiscal={});
+  const defF={ativo:false,auto:false,ambiente:'homologacao',cnpj:'',ie:'',razao:'',fantasia:'',logradouro:'',numero:'',bairro:'',municipio:'Pelotas',codMunicipio:'4314407',uf:'RS',cep:'',regime:'1',serie:'1',proximoNumero:1};
+  Object.keys(defF).forEach(k=>{if(F[k]===undefined)F[k]=defF[k];});
+  if(!d.esperas) d.esperas=[];
+  (d.produtos||[]).forEach(p=>{
+    if(p.categoria===undefined)p.categoria='';
+    if(p.descricao===undefined)p.descricao='';
+    if(p.cozinha===undefined)p.cozinha=!p.controla;
+    if(p.cardapio===undefined)p.cardapio=true;
+    if(p.ncm===undefined)p.ncm='';
+    if(p.cfop===undefined)p.cfop='5102';
+    if(p.csosn===undefined)p.csosn='102';
+  });
+  (d.mesas||[]).forEach(m=>{if(m.contaPedida===undefined)m.contaPedida=false;});
+  return d;
+};
+
+/* =====================================================================
+   1) ATALHOS DO PDV (F1–F12, CTRL+E, CTRL+A) + leitor de código de barras
+   ===================================================================== */
+let cpfNota='';
+const ATALHOS=[['F1','Opções'],['F2','Produtos'],['F3','Fechar cupom'],['F4','Cancelar cupom'],['F5','Cancelar item'],['F6','Consulta preço'],
+  ['F7','Consulta cliente'],['F8','Desconto item'],['F9','Pré-vendas'],['F10','Venda em espera'],['F11','Sangria'],['F12','Últimas vendas'],['Ctrl+E','Mesas'],['Ctrl+A','Consumidor']];
+function fbarHTML(){return `<div class="fbar">${ATALHOS.map(a=>`<button onclick="acaoAtalho('${a[0]}')"><b>${a[0]}</b>${a[1]}</button>`).join('')}</div>`;}
+function acaoAtalho(k){
+  switch(k){
+    case 'F1': return abrirAtalhos();
+    case 'F2': { const s=$('#prodSearch'); if(s){s.focus();s.select();} return; }
+    case 'F3': if(cart.length) openPagamento(); else toast('Cupom vazio','bad'); return;
+    case 'F4':
+      if(!cart.length){toast('O cupom já está vazio');return;}
+      confirmModal('Cancelar cupom?','Todos os itens serão removidos'+(mesaAtual?' da comanda desta mesa.':'.'),()=>{cart=[];descontoPct=0;syncMesa();renderBalcao();toast('Cupom cancelado');});
+      return;
+    case 'F5': return cancelarItemPrompt();
+    case 'F6': return consultaPreco();
+    case 'F7': return openClientePicker('atual');
+    case 'F8': return descontoItemPrompt();
+    case 'F9': return abrirPreVendas();
+    case 'F10': return vendaEmEspera();
+    case 'F11': return go('sangria');
+    case 'F12': return go('vendas');
+    case 'Ctrl+E':
+      if(!db.config.modulos.mesas){toast('Ative o módulo Mesas em Configurações','bad');return;}
+      if(mesaAtual) voltarMesas(); else go('mesas'); return;
+    case 'Ctrl+A': {
+      const c=db.clientes.find(x=>x.nome.startsWith('Consumidor'));
+      if(c){db.clienteAtualId=c.id;store.save();if(current==='balcao')renderBalcao();toast('Cliente: '+c.nome);}
+      return; }
+  }
+}
+function abrirAtalhos(){
+  openModal('Opções · atalhos do PDV',ATALHOS.map(a=>`<button class="action-row" onclick="closeModal();${current==='balcao'?'':"go('balcao');"}acaoAtalho('${a[0]}')">
+    <span class="an" style="width:auto;padding:0 8px">${a[0]}</span><span class="al">${a[1]}</span></button>`).join('')
+    +`<p style="color:var(--faint);font-size:12.5px;margin:10px 4px 0">No campo de busca: bipe o código de barras ou digite <b class="mono">3*código</b> para lançar 3 unidades. ESC volta.</p>`,null);
+}
+document.addEventListener('keydown',e=>{
+  if(MODO!=='caixa'||!currentUser) return;
+  if(document.getElementById('appContainer').style.display==='none') return;
+  const k=e.key||'';
+  const fk=/^F([1-9]|1[0-2])$/.test(k);
+  const ck=e.ctrlKey&&!e.altKey&&!e.shiftKey&&['e','a'].includes(k.toLowerCase());
+  if(!fk&&!ck) return;
+  if(current!=='balcao'){
+    if(k==='F1'){e.preventDefault();abrirAtalhos();}
+    else if(k==='F9'&&current==='mesas'){e.preventDefault();e.stopPropagation();abrirPreVendas();}
+    else if(ck&&k.toLowerCase()==='e'&&current==='home'){e.preventDefault();acaoAtalho('Ctrl+E');}
+    return;
+  }
+  e.preventDefault();e.stopPropagation();
+  if($('#modal').innerHTML) closeModal();
+  acaoAtalho(ck?('Ctrl+'+k.toUpperCase()):k);
+},true);
+
+function listaItensTxt(){return cart.map((i,ix)=>`${ix+1}. ${i.qtd}x ${esc(i.nome)} — ${money(i.preco*i.qtd)}`).join('<br>');}
+function cancelarItemPrompt(){
+  if(!cart.length){toast('Cupom vazio','bad');return;}
+  openModal('Cancelar item (F5)',`<label class="fl">Número do item (1 a ${cart.length})</label>
+    <input class="finput mono" id="cxItem" type="number" min="1" max="${cart.length}" value="${cart.length}">
+    <div style="color:var(--muted);font-size:13px;line-height:1.6">${listaItensTxt()}</div>`,()=>{
+    const n=parseInt($('#cxItem').value);
+    if(!(n>=1&&n<=cart.length)){toast('Item inválido','bad');return false;}
+    const it=cart.splice(n-1,1)[0];syncMesa();renderBalcao();toast('Item cancelado: '+it.nome);
+  });
+}
+function descontoItemPrompt(){
+  if(!cart.length){toast('Cupom vazio','bad');return;}
+  openModal('Desconto no item (F8)',`<label class="fl">Número do item</label>
+    <input class="finput mono" id="dsItem" type="number" min="1" max="${cart.length}" value="${cart.length}">
+    <div style="display:flex;gap:10px">
+      <div style="flex:1"><label class="fl">Desconto</label><input class="finput mono" id="dsVal" type="number" step="0.01" placeholder="0,00"></div>
+      <div style="flex:1"><label class="fl">Tipo</label><select class="sel" id="dsTipo"><option value="r">R$ (valor)</option><option value="p">% (percentual)</option></select></div>
+    </div>
+    <div style="color:var(--muted);font-size:13px;line-height:1.6">${listaItensTxt()}</div>`,()=>{
+    const it=cart[parseInt($('#dsItem').value)-1];
+    if(!it){toast('Item inválido','bad');return false;}
+    const v=parseFloat($('#dsVal').value)||0;
+    if(it.precoOrig===undefined) it.precoOrig=it.preco;
+    const bruto=it.precoOrig*it.qtd;
+    let d=$('#dsTipo').value==='p'?bruto*v/100:v; d=Math.max(0,Math.min(bruto,d));
+    it.preco=r2((bruto-d)/it.qtd); it.desc=r2(d);
+    syncMesa();renderBalcao();toast(d>0?('Desconto de '+money(d)+' em '+it.nome):'Desconto removido','good');
+  });
+}
+function consultaPreco(){
+  openModal('Consulta de preço (F6)',`<input class="finput" id="cpBusca" placeholder="Nome ou código de barras…" oninput="cpRender(this.value)"><div id="cpLista"></div>`,null);
+  cpRender('');
+}
+function cpRender(q){
+  q=(q||'').toLowerCase();
+  const el=$('#cpLista'); if(!el) return;
+  const l=db.produtos.filter(p=>(p.nome+' '+(p.codigoBarras||'')).toLowerCase().includes(q)).slice(0,40);
+  el.innerHTML=l.map(p=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line)">
+    <div><b>${esc(p.nome)}</b><div style="color:var(--faint);font-size:12px">${p.controla?'Estoque: '+p.estoque:'Sem controle de estoque'}${p.codigoBarras?' · '+esc(p.codigoBarras):''}</div></div>
+    <div class="mono" style="font-weight:800;color:var(--money);white-space:nowrap">${money(p.preco)}</div></div>`).join('')||'<div style="color:var(--faint);padding:14px">Nada encontrado</div>';
+}
+function vendaEmEspera(){
+  if(mesaAtual){toast('A comanda da mesa já fica salva automaticamente','bad');return;}
+  const lista=db.esperas||(db.esperas=[]);
+  const tot=c=>c.reduce((s,i)=>s+i.preco*i.qtd,0);
+  const park=cart.length?`<button class="action-row" onclick="closeModal();colocarEmEspera()"><span class="an">+</span><span class="al">Colocar a venda atual em espera</span><span class="mono">${money(tot(cart))}</span></button>`:'';
+  const rec=lista.map((v,ix)=>`<button class="action-row" onclick="closeModal();recuperarEspera(${ix})"><span class="an">${ix+1}</span>
+    <span class="al">${esc(v.rotulo)} <span style="color:var(--faint);font-size:12px">· ${v.hora} · ${v.cart.length} item(s)</span></span><span class="mono">${money(tot(v.cart))}</span></button>`).join('');
+  openModal('Vendas em espera (F10)',park+rec+((!park&&!rec)?'<div style="color:var(--faint)">Nenhuma venda em espera.</div>':''),null);
+}
+function colocarEmEspera(){
+  const cli=cliente(db.clienteAtualId);
+  db.esperas.push({id:uid(),rotulo:(cli&&!cli.nome.startsWith('Consumidor'))?cli.nome:('Venda '+(db.esperas.length+1)),hora:agora(),
+    cart:cart.map(i=>({...i})),clienteId:db.clienteAtualId,descontoPct});
+  cart=[];descontoPct=0;store.save();renderBalcao();toast('Venda colocada em espera','good');
+}
+function recuperarEspera(ix){
+  if(cart.length){toast('Finalize ou coloque a venda atual em espera antes','bad');return;}
+  const v=db.esperas.splice(ix,1)[0]; if(!v) return;
+  cart=v.cart; descontoPct=v.descontoPct||0;
+  if(v.clienteId&&cliente(v.clienteId)) db.clienteAtualId=v.clienteId;
+  store.save();renderBalcao();toast('Venda recuperada','good');
+}
+function buscaEnter(val){
+  let q=(val||'').trim(); if(!q) return;
+  let qtd=1;
+  const m=q.match(/^(\d+(?:[.,]\d+)?)\s*\*\s*(.+)$/);
+  if(m){qtd=parseFloat(m[1].replace(',','.'))||1;q=m[2].trim();}
+  const ql=q.toLowerCase();
+  let p=db.produtos.find(x=>x.codigoBarras&&x.codigoBarras===q)||db.produtos.find(x=>x.nome.toLowerCase()===ql);
+  if(!p){const l=db.produtos.filter(x=>x.nome.toLowerCase().includes(ql)||(x.codigoBarras||'').includes(q));if(l.length===1)p=l[0];}
+  if(!p){toast('Produto não encontrado: '+q,'bad');return;}
+  prodFilter='';
+  addToCart(p.id);
+  if(qtd!==1){const it=cart.find(i=>i.id===p.id);if(it){it.qtd=r2(it.qtd-1+qtd);syncMesa();renderBalcao();}}
+}
+
+/* ---- envolve telas existentes ---- */
+const _renderBase=render;
+render=function(){view.classList.remove('com-fbar');_renderBase();};
+
+const _renderBalcaoBase=renderBalcao;
+renderBalcao=function(){
+  _renderBalcaoBase();
+  const s=$('#prodSearch');
+  if(s){
+    s.placeholder='Código de barras ou nome · Enter lança (ex.: 3*789…)';
+    s.addEventListener('keydown',ev=>{
+      if(ev.key==='Enter'){ev.preventDefault();ev.stopPropagation();buscaEnter(s.value);}
+      else if(ev.key==='Escape'&&!$('#modal').innerHTML){ev.preventDefault();s.blur();if(mesaAtual)voltarMesas();else go('home');}
+    });
+  }
+  if(mesaAtual&&cozinhaOn()){
+    const pend=itensPendentesCozinha(cart);
+    const sp=view.querySelector('.scr-head .spacer');
+    if(sp&&pend.length) sp.insertAdjacentHTML('afterend',`<button class="btn pri" onclick="enviarMesaCozinha()">Enviar à cozinha (${pend.reduce((t,i)=>t+i.qtd,0)})</button>`);
+  }
+  view.insertAdjacentHTML('beforeend',fbarHTML());
+  view.classList.add('com-fbar');
+  if(s&&window.innerWidth>820&&!$('#modal').innerHTML&&document.activeElement!==s){
+    setTimeout(()=>{ if(document.body.contains(s)&&!$('#modal').innerHTML){const len=s.value.length;s.focus();try{s.setSelectionRange(len,len);}catch(e){}} },0);
+  }
+};
+
+const _openPagamentoBase=openPagamento;
+openPagamento=function(){
+  _openPagamentoBase();
+  const b=$('#modal .modal-body');
+  if(b) b.insertAdjacentHTML('afterbegin',`<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
+    <label class="fl" style="margin:0;white-space:nowrap">CPF/CNPJ na nota</label>
+    <input class="finput mono" style="margin:0" id="cpfNotaIn" inputmode="numeric" placeholder="opcional" value="${esc(cpfNota)}" oninput="cpfNota=this.value"></div>`);
+  setTimeout(()=>{const i=$('#cpfNotaIn');if(i&&document.activeElement===i)i.blur();},80);
+};
+
+const _finalizarVendaBase=finalizarVenda;
+finalizarVenda=function(metodo,total,recebido){
+  const nAntes=db.vendas.length;
+  const mesaId=mesaAtual, rotulo=mesaAtual?mesaNome():null;
+  const pend=itensPendentesCozinha(cart);
+  _finalizarVendaBase(metodo,total,recebido);
+  if(db.vendas.length===nAntes) return;
+  const v=db.vendas[0];
+  if(soDig(cpfNota)) v.cpf=soDig(cpfNota);
+  cpfNota='';
+  if(mesaId){const m=db.mesas.find(x=>x.id===mesaId);if(m)m.contaPedida=false;}
+  if(pend.length&&(mesaId||db.config.cozinhaBalcao)) enviarParaCozinha(mesaId?rotulo:('BALCÃO · venda '+v.numero),mesaId,pend,'caixa');
+  const F=db.config.fiscal||{};
+  if(F.ativo&&F.auto) enfileirarNFCe(v,true);
+  store.save();
+};
+
+const _voltarMesasBase=voltarMesas;
+voltarMesas=function(){
+  if(mesaAtual&&cozinhaOn()){
+    const pend=itensPendentesCozinha(cart);
+    if(pend.length){enviarParaCozinha(mesaNome(),mesaAtual,pend,'caixa');marcarEnviados(cart);toast('Itens novos enviados à cozinha','good');}
+  }
+  _voltarMesasBase();
+};
+
+const _renderMesasBase=renderMesas;
+renderMesas=function(){
+  _renderMesasBase();
+  const cards=view.querySelectorAll('.mesa-card');
+  (db.mesas||[]).forEach((m,ix)=>{
+    const c=cards[ix]; if(!c) return;
+    let tags='';
+    if(m.contaPedida) tags+='<span class="mtag conta">CONTA</span>';
+    const q=pedidosPend.filter(p=>p.mesaId===m.id&&p.status==='aguardando').length;
+    if(q) tags+=`<span class="mtag qr">QR · ${q}</span>`;
+    if(tags) c.insertAdjacentHTML('beforeend',`<div>${tags}</div>`);
+  });
+  const sp=view.querySelector('.scr-head .spacer');
+  if(sp) sp.insertAdjacentHTML('afterend',`<button class="btn gho" onclick="abrirPreVendas()">Pré-vendas (F9)</button><button class="btn gho" onclick="imprimirQRMesas()">QR Codes</button>`);
+};
+
+const _openVendaAcoesBase=openVendaAcoes;
+openVendaAcoes=function(ix){
+  _openVendaAcoesBase(ix);
+  const v=db.vendas[ix]; const b=$('#modal .modal-body'); if(!b||!v) return;
+  const bloq=v.cancelada||v.fiscal==='Na fila'||v.fiscal==='Emitida';
+  b.insertAdjacentHTML('afterbegin',`<button class="action-row ${bloq?'disabled':''}" ${bloq?'':`onclick="closeModal();enfileirarNFCe(db.vendas[${ix}])"`}>
+    <span class="an">★</span><span class="al">Emitir NFC-e (preparar e enviar à fila)</span></button>
+    ${v.nfce?`<div style="font-size:12px;color:var(--muted);padding:0 8px 8px">NFC-e nº ${v.nfce.numero} · série ${esc(v.nfce.serie)} · ${esc(String(v.nfce.status).replace(/_/g,' '))}</div>`:''}`);
+};
+
+/* =====================================================================
+   2) COZINHA — envio, fila de impressão e ticket térmico
+   ===================================================================== */
+function ehCozinha(id){const p=db.produtos.find(x=>x.id===id);return p?p.cozinha!==false:true;}
+function itensPendentesCozinha(lista){
+  return (lista||[]).filter(i=>ehCozinha(i.id)&&(i.qtd-(i.env||0))>0)
+    .map(i=>({id:i.id,nome:i.nome,qtd:r2(i.qtd-(i.env||0)),obs:i.obs||'',preco:i.preco}));
+}
+function marcarEnviados(lista){(lista||[]).forEach(i=>{if(ehCozinha(i.id))i.env=i.qtd;});}
+function enviarParaCozinha(rotulo,mesaId,itens,origem){
+  if(!cozinhaOn()||!itens||!itens.length||!currentUser) return false;
+  colPedidos().add({tipo:'pedido',mesaId:mesaId||null,mesaNome:rotulo||'Pedido',
+    itens:itens.map(i=>({id:i.id,nome:i.nome,qtd:i.qtd,obs:i.obs||'',preco:i.preco||0})),
+    origem:origem||'caixa',garcom:db.vendedor||'',status:'lancado',impresso:false,ts:Date.now()})
+    .catch(e=>{console.error(e);toast('Falha ao enviar à cozinha (sem internet?)','bad');});
+  return true;
+}
+function enviarMesaCozinha(){
+  if(!mesaAtual) return;
+  const pend=itensPendentesCozinha(cart);
+  if(!pend.length){toast('Nada novo para a cozinha');return;}
+  enviarParaCozinha(mesaNome(),mesaAtual,pend,'caixa');
+  marcarEnviados(cart);syncMesa();renderBalcao();toast('Pedido enviado à cozinha','good');
+}
+function ticketCozinhaHTML(p){
+  const itens=(p.itens||[]).filter(i=>ehCozinha(i.id));
+  if(!itens.length) return null;
+  const org=p.origem==='qr'?'QR Code':p.origem==='garcom'?('Garçom '+esc(p.garcom||'')):'Caixa';
+  return `<div class="ticket"><h1>${esc(p.mesaNome||'PEDIDO')}</h1>
+    <div class="tk-sub">COZINHA · ${horaDe(p.ts)} · ${org}</div>${p.cliente?`<div class="tk-sub">Cliente: ${esc(p.cliente)}</div>`:''}<hr>
+    ${itens.map(i=>`<div class="tk-it">${i.qtd} x ${esc(i.nome)}</div>${i.obs?`<div class="tk-obs">» ${esc(i.obs)}</div>`:''}`).join('')}
+    <hr><div class="tk-sub">${esc(db.config.nomeLoja||'')}</div></div>`;
+}
+function imprimirTicket(html){
+  if(!html) return;
+  let st=document.getElementById('pageTicket');
+  if(!st){st=document.createElement('style');st.id='pageTicket';document.head.appendChild(st);}
+  st.textContent='@page{margin:0}';
+  doPrint(html);
+  setTimeout(()=>{st.textContent='';},1500);
+}
+let filaImp=[], imprimindo=false, impUnsub=null; const enfileirados=new Set();
+function iniciarImpressoraCozinha(){
+  if(impUnsub) return;
+  impUnsub=colPedidos().where('impresso','==',false).onSnapshot(snap=>{
+    snap.docChanges().forEach(ch=>{
+      if(ch.type==='removed') return;
+      const p=ch.doc.data();
+      if(['aprovado','lancado'].includes(p.status)&&!enfileirados.has(ch.doc.id)){enfileirados.add(ch.doc.id);filaImp.push(ch.doc.ref);}
+    });
+    processarFilaImp();
+  },err=>console.error('impressora cozinha',err));
+  unsubs.push(impUnsub);
+}
+function pararImpressoraCozinha(){if(impUnsub){try{impUnsub()}catch(e){}unsubs=unsubs.filter(u=>u!==impUnsub);impUnsub=null;}}
+async function processarFilaImp(){
+  if(imprimindo) return; imprimindo=true;
+  while(filaImp.length){
+    const ref=filaImp.shift();
+    try{
+      const p=await fsdb.runTransaction(async t=>{
+        const d=await t.get(ref);
+        if(!d.exists||d.data().impresso) return null;
+        t.update(ref,{impresso:true,impressoEm:Date.now(),impressoPor:DEVICE_ID});
+        return d.data();
+      });
+      if(p){const h=ticketCozinhaHTML(p);if(h){if(MODO==='cozinha')beep(1);imprimirTicket(h);await new Promise(r=>setTimeout(r,1500));}}
+    }catch(e){console.error('falha na impressão',e);enfileirados.delete(ref.id);}
+  }
+  imprimindo=false;
+}
+function testeImpressao(){
+  imprimirTicket(ticketCozinhaHTML({mesaNome:'TESTE',ts:Date.now(),origem:'caixa',itens:[{id:'__teste',nome:'Teste de impressão',qtd:1,obs:'Se saiu no papel, está funcionando'}]}));
+}
+
+/* =====================================================================
+   3) PEDIDOS QUE CHEGAM NO CAIXA (garçom / QR / chamados)
+   ===================================================================== */
+let pedidosPend=[]; const pedidosVistos=new Set(); const lancando=new Set();
+function iniciarPedidosCaixa(){
+  const u=colPedidos().where('status','in',['aguardando','aprovado','chamado']).onSnapshot(snap=>{
+    pedidosPend=[];
+    snap.forEach(doc=>{
+      const p={...doc.data(),_id:doc.id};
+      if(p.status==='aprovado'&&(p.tipo||'pedido')==='pedido'){lancarPedido(doc.ref);return;}
+      if(p.status==='aguardando'&&!db.config.qrAprovacao){doc.ref.update({status:'aprovado',aprovadoEm:Date.now()}).catch(()=>{});return;}
+      if(p.tipo==='conta') marcarContaPedida(p);
+      pedidosPend.push(p);
+      if(!pedidosVistos.has(doc.id)){pedidosVistos.add(doc.id);avisarPedido(p);}
+    });
+    atualizarBadge();
+    if($('#preVendasLista')) renderPreVendasLista();
+    if(current==='mesas'&&!$('#modal').innerHTML) renderMesas();
+  },err=>console.error('pedidos',err));
+  unsubs.push(u);
+}
+function lancarPedido(ref){
+  if(lancando.has(ref.id)) return; lancando.add(ref.id);
+  fsdb.runTransaction(async t=>{
+    const d=await t.get(ref);
+    if(!d.exists||d.data().status!=='aprovado') return null;
+    t.update(ref,{status:'lancado',lancadoEm:Date.now(),lancadoPor:DEVICE_ID});
+    return d.data();
+  }).then(p=>{if(p)aplicarPedidoNaMesa(p);}).catch(e=>{console.error(e);lancando.delete(ref.id);});
+}
+function aplicarPedidoNaMesa(p){
+  const m=(db.mesas||[]).find(x=>x.id===p.mesaId);
+  if(!m){toast('Pedido para mesa inexistente ('+(p.mesaNome||'?')+')','bad');return;}
+  const itens=(p.itens||[]).map(it=>{
+    const prod=db.produtos.find(x=>x.id===it.id); if(!prod) return null;
+    const q=Math.max(0,Math.min(99,Number(it.qtd)||0)); if(!q) return null;
+    return {id:prod.id,nome:prod.nome,preco:prod.preco,qtd:q,obs:String(it.obs||'').slice(0,140),env:q,orig:p.origem};
+  }).filter(Boolean);
+  if(!itens.length) return;
+  if(mesaAtual===m.id){cart.push(...itens);syncMesa();if(current==='balcao')renderBalcao();}
+  else{m.comanda=(m.comanda||[]).concat(itens);m.aberta=true;if(!m.abertaEm)m.abertaEm=Date.now();store.save();}
+  if(current==='mesas'&&!$('#modal').innerHTML) renderMesas();
+  if(current==='home') renderHome();
+  toast(`${p.origem==='qr'?'Pedido QR':'Garçom'} · ${m.nome}: ${itens.reduce((s,i)=>s+i.qtd,0)} item(s) lançados na comanda`,'good');
+}
+function marcarContaPedida(p){
+  const m=(db.mesas||[]).find(x=>x.id===p.mesaId);
+  if(m&&!m.contaPedida){m.contaPedida=true;store.save();}
+}
+function avisarPedido(p){
+  beep(p.status==='aguardando'?3:2);
+  const msg=p.tipo==='chamado'?`${p.mesaNome} está chamando o garçom`:p.tipo==='conta'?`${p.mesaNome} pediu a conta`:`Novo pedido pelo QR · ${p.mesaNome} — F9 para aprovar`;
+  toast('🔔 '+msg,'bad');
+}
+function atualizarBadge(){
+  const b=$('#pedBadge'); if(!b) return;
+  const n=pedidosPend.length;
+  b.className='ped-badge'+(n?' on':'');
+  b.textContent=n?`🔔 ${n} aviso${n>1?'s':''} · F9`:'';
+}
+function abrirPreVendas(){
+  openModal('Pré-vendas e chamados (F9)','<div id="preVendasLista"></div>',null);
+  renderPreVendasLista();
+}
+function renderPreVendasLista(){
+  const el=$('#preVendasLista'); if(!el) return;
+  if(!pedidosPend.length){el.innerHTML='<div style="color:var(--faint);padding:6px 0">Nada aguardando. Pedidos do garçom entram direto na mesa e na cozinha; pedidos do QR Code aparecem aqui para aprovação.</div>';return;}
+  el.innerHTML=pedidosPend.slice().sort((a,b)=>a.ts-b.ts).map(p=>{
+    const tit=p.tipo==='chamado'?'Chamando o garçom':p.tipo==='conta'?'Pediu a conta':'Pedido pelo QR Code';
+    const itens=(p.itens||[]).map(i=>`${i.qtd}x ${esc(i.nome)}${i.obs?` <i style="color:var(--accent)">(${esc(i.obs)})</i>`:''}`).join('<br>');
+    const acoes=p.status==='aguardando'
+      ?`<button class="btn dan" onclick="recusarPedido('${p._id}')">Recusar</button><button class="btn pri" onclick="aprovarPedido('${p._id}')">Aprovar e enviar</button>`
+      :`<button class="btn gho" onclick="atenderChamado('${p._id}')">Atendido</button>`;
+    return `<div class="k-card ${p.status==='aguardando'?'novo':''}">
+      <div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(p.mesaNome||'—')} · ${tit}</b><span class="mono" style="color:var(--muted)">${horaDe(p.ts)}</span></div>
+      ${p.cliente?`<div style="color:var(--muted);font-size:13px">Cliente: ${esc(p.cliente)}</div>`:''}
+      ${itens?`<div style="margin:8px 0;font-size:14px;line-height:1.5">${itens}</div>`:''}
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">${acoes}</div></div>`;
+  }).join('');
+}
+function aprovarPedido(id){colPedidos().doc(id).update({status:'aprovado',aprovadoEm:Date.now()}).then(()=>toast('Pedido aprovado · indo para a cozinha','good')).catch(()=>toast('Erro ao aprovar','bad'));}
+function recusarPedido(id){colPedidos().doc(id).update({status:'recusado'}).catch(()=>{});toast('Pedido recusado');}
+function atenderChamado(id){colPedidos().doc(id).update({status:'atendido',atendidoEm:Date.now()}).catch(()=>{});}
+
+/* ---------- cardápio público (para o QR Code) ---------- */
+let ultimoCardapio='';
+function publicarCardapio(forcar){
+  if(MODO!=='caixa'||!currentUser) return;
+  const c={nome:db.config.nomeLoja||'',aprovacao:!!db.config.qrAprovacao,
+    produtos:db.produtos.filter(p=>p.cardapio!==false).map(p=>({id:p.id,nome:p.nome,preco:p.preco,categoria:p.categoria||'',descricao:p.descricao||'',disp:!(p.controla&&p.estoque<=0)})),
+    mesas:(db.mesas||[]).map(m=>({id:m.id,nome:m.nome}))};
+  const s=JSON.stringify(c);
+  if(!forcar&&s===ultimoCardapio) return;
+  ultimoCardapio=s;
+  fsdb.collection('cardapios').doc(currentUser.uid).set({...c,atualizadoEm:Date.now()})
+    .catch(e=>console.warn('Cardápio QR não publicado (verifique as regras do Firestore):',e.code||e));
+}
+function carregarQRLib(){return new Promise((res,rej)=>{if(window.QRCode)return res();const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+async function imprimirQRMesas(){
+  if(!(db.mesas||[]).length){toast('Cadastre as mesas primeiro','bad');return;}
+  publicarCardapio(true);
+  try{await carregarQRLib();}catch(e){toast('Sem internet para gerar o QR Code','bad');return;}
+  const cards=db.mesas.map(m=>{
+    const url=baseURL()+'?loja='+currentUser.uid+'&mesa='+m.id;
+    const div=document.createElement('div');
+    new QRCode(div,{text:url,width:400,height:400,correctLevel:QRCode.CorrectLevel.M});
+    const cv=div.querySelector('canvas'); const src=cv?cv.toDataURL('image/png'):((div.querySelector('img')||{}).src||'');
+    return `<div class="qc"><div style="font-size:20px;font-weight:800">${esc(db.config.nomeLoja)}</div><img src="${src}" alt="">
+      <div style="font-size:28px;font-weight:800">${esc(m.nome)}</div><div style="font-size:13px">Aponte a câmera do celular e faça seu pedido</div></div>`;
+  }).join('');
+  $('#printArea').innerHTML=`<div class="qr-sheet">${cards}</div>`;
+  setTimeout(()=>window.print(),400);
+}
+
+/* =====================================================================
+   4) NFC-e — preparação do documento e fila de emissão
+   ===================================================================== */
+function montarNFCe(v){
+  const F=db.config.fiscal||{}; const erros=[];
+  if(soDig(F.cnpj).length!==14) erros.push('CNPJ do emitente (Configurações › Nota fiscal)');
+  if(!soDig(F.ie)) erros.push('Inscrição estadual do emitente');
+  if(!F.razao) erros.push('Razão social do emitente');
+  const itens=v.itens||[];
+  if(!itens.length) erros.push('Venda sem itens detalhados');
+  const bruto=r2(itens.reduce((s,i)=>s+i.preco*i.qtd,0));
+  const taxa=v.taxa||0;
+  let desc=r2(bruto+taxa-v.valor); if(desc<0) desc=0;
+  let acum=0;
+  const items=itens.map((i,ix)=>{
+    const p=db.produtos.find(x=>x.id===i.id)||{};
+    const ncm=soDig(p.ncm);
+    if(ncm.length!==8) erros.push('NCM (8 dígitos) do produto "'+i.nome+'"');
+    const vb=r2(i.preco*i.qtd);
+    const d=ix===itens.length-1?r2(desc-acum):r2(bruto?desc*vb/bruto:0); acum=r2(acum+d);
+    const un=(p.unidade||'un').toUpperCase();
+    const it={numero_item:ix+1,codigo_produto:p.codigoBarras||String(i.id),descricao:i.nome,codigo_ncm:ncm,cfop:soDig(p.cfop)||'5102',
+      unidade_comercial:un,quantidade_comercial:i.qtd,valor_unitario_comercial:i.preco,unidade_tributavel:un,quantidade_tributavel:i.qtd,
+      valor_unitario_tributavel:i.preco,valor_bruto:vb,icms_origem:0,icms_situacao_tributaria:p.csosn||'102',
+      pis_situacao_tributaria:'49',cofins_situacao_tributaria:'49'};
+    if(d>0) it.valor_desconto=d;
+    if(ix===0&&taxa>0) it.valor_outras_despesas=r2(taxa);
+    return it;
+  });
+  const formas={dinheiro:'01',credito:'03',debito:'04',pix:'17',fiado:'05'};
+  const payload={natureza_operacao:'VENDA AO CONSUMIDOR',data_emissao:new Date(v.ts||Date.now()).toISOString(),tipo_documento:1,
+    finalidade_emissao:1,consumidor_final:1,presenca_comprador:1,modalidade_frete:9,local_destino:1,cnpj_emitente:soDig(F.cnpj),
+    items,formas_pagamento:[{forma_pagamento:formas[v.metodo]||'99',valor_pagamento:r2(v.valor)}]};
+  const doc=soDig(v.cpf);
+  if(doc.length===11) payload.cpf_destinatario=doc; else if(doc.length===14) payload.cnpj_destinatario=doc;
+  return {erros:[...new Set(erros)],payload};
+}
+function enfileirarNFCe(v,silencioso){
+  if(!v||v.cancelada) return;
+  const r=montarNFCe(v);
+  if(r.erros.length){
+    if(silencioso){toast('NFC-e não preparada: falta '+r.erros[0],'bad');return;}
+    openModal('NFC-e · faltam dados',`<p style="color:var(--muted);margin-top:0">Complete antes de emitir:</p><ul style="line-height:1.7">${r.erros.map(e=>`<li>${esc(e)}</li>`).join('')}</ul>`,null,
+      `<button class="cancel" onclick="closeModal()">Fechar</button><button class="ok" onclick="closeModal();abrirFiscal()">Dados do emitente</button>`);
+    return;
+  }
+  const F=db.config.fiscal; const numero=F.proximoNumero++;
+  const reg={vendaCodigo:v.codigo,vendaNumero:v.numero,numero,serie:F.serie,ambiente:F.ambiente,provedor:'focusnfe',status:'aguardando_integracao',criadoEm:Date.now(),payload:r.payload};
+  fsdb.collection('empresas').doc(currentUser.uid).collection('nfce').doc(String(v.codigo)).set(JSON.parse(JSON.stringify(reg))).catch(e=>console.error(e));
+  v.fiscal='Na fila'; v.nfce={numero,serie:F.serie,status:'aguardando_integracao'};
+  store.save(); if(current==='vendas') renderVendas();
+  if(!silencioso) toast('NFC-e nº '+numero+' preparada e na fila de emissão','good');
+}
+function abrirFiscal(){
+  const F=db.config.fiscal;
+  const fi=(id,lbl,val,ph,extra)=>`<div style="flex:1;min-width:140px"><label class="fl">${lbl}</label><input class="finput ${extra||''}" id="${id}" value="${esc(String(val||''))}" placeholder="${ph||''}"></div>`;
+  openModal('Nota fiscal · dados do emitente',`
+    <div style="display:flex;gap:12px;flex-wrap:wrap">${fi('fRazao','Razão social',F.razao)}${fi('fFant','Nome fantasia',F.fantasia)}</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">${fi('fCnpj','CNPJ',F.cnpj,'00.000.000/0000-00','mono')}${fi('fIe','Inscrição estadual',F.ie,'','mono')}</div>
+    <label class="fl">Regime tributário</label>
+    <select class="sel" id="fReg"><option value="1" ${F.regime==='1'?'selected':''}>Simples Nacional</option><option value="2" ${F.regime==='2'?'selected':''}>Simples Nacional — excesso de sublimite</option><option value="3" ${F.regime==='3'?'selected':''}>Regime normal</option></select>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">${fi('fLog','Logradouro',F.logradouro)}${fi('fNum','Número',F.numero)}</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">${fi('fBai','Bairro',F.bairro)}${fi('fMun','Município',F.municipio)}${fi('fCodMun','Cód. IBGE',F.codMunicipio,'','mono')}</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">${fi('fUf','UF',F.uf)}${fi('fCep','CEP',F.cep,'','mono')}${fi('fSerie','Série NFC-e',F.serie,'','mono')}${fi('fProx','Próximo nº',F.proximoNumero,'','mono')}</div>
+    <label class="fl">Ambiente</label>
+    <select class="sel" id="fAmb"><option value="homologacao" ${F.ambiente==='homologacao'?'selected':''}>Homologação (testes, sem valor fiscal)</option><option value="producao" ${F.ambiente==='producao'?'selected':''}>Produção</option></select>
+    <p style="color:var(--faint);font-size:12.5px;margin:0">Certificado A1, CSC e token do provedor ficam no painel do provedor fiscal (Focus NFe), nunca aqui.</p>
+  `,()=>{
+    Object.assign(F,{razao:$('#fRazao').value.trim(),fantasia:$('#fFant').value.trim(),cnpj:soDig($('#fCnpj').value),ie:soDig($('#fIe').value),
+      regime:$('#fReg').value,logradouro:$('#fLog').value.trim(),numero:$('#fNum').value.trim(),bairro:$('#fBai').value.trim(),
+      municipio:$('#fMun').value.trim(),codMunicipio:soDig($('#fCodMun').value),uf:$('#fUf').value.trim().toUpperCase().slice(0,2),
+      cep:soDig($('#fCep').value),serie:soDig($('#fSerie').value)||'1',proximoNumero:parseInt($('#fProx').value)||1,ambiente:$('#fAmb').value});
+    store.save();toast('Dados fiscais salvos','good');if(current==='config')renderConfig();
+  });
+}
+async function exportarFilaNFCe(){
+  try{
+    const s=await fsdb.collection('empresas').doc(currentUser.uid).collection('nfce').get();
+    const arr=[];s.forEach(d=>arr.push({id:d.id,...d.data()}));
+    const blob=new Blob([JSON.stringify(arr,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='fila-nfce-'+hoje().replace(/\//g,'-')+'.json';a.click();
+    toast(arr.length+' NFC-e exportada(s)','good');
+  }catch(e){toast('Erro ao exportar a fila','bad');}
+}
+
+/* ---------- Configurações: novos cartões ---------- */
+const _renderConfigBase=renderConfig;
+renderConfig=function(){
+  _renderConfigBase();
+  const g=view.querySelector('.cfg-grid'); if(!g) return;
+  const F=db.config.fiscal||{};
+  const nFila=db.vendas.filter(v=>v.fiscal==='Na fila').length;
+  const linkG=baseURL()+'?modo=garcom', linkK=baseURL()+'?modo=cozinha';
+  const impAqui=lsGet('rz_imprime_cozinha')==='1';
+  g.insertAdjacentHTML('afterbegin',`
+  <div class="cfg-card">
+    <h3>Garçom no celular & QR Code na mesa</h3>
+    <p>O garçom abre este link no celular, entra com a mesma conta e lança os pedidos na mesa. O cliente também pode pedir pelo QR Code impresso na mesa.</p>
+    ${db.config.modulos.mesas?'':'<p style="color:var(--danger);font-weight:700">Ative o módulo Mesas para usar.</p>'}
+    <label class="fl">Link do garçom</label>
+    <div style="display:flex;gap:8px"><input class="finput mono" style="font-size:12px" readonly value="${esc(linkG)}" onclick="this.select()"><button class="btn gho" style="margin-bottom:12px" onclick="copiarTxt('${esc(linkG)}')">Copiar</button></div>
+    <label class="cfg-chk"><input type="checkbox" ${db.config.qrAprovacao?'checked':''} onchange="db.config.qrAprovacao=this.checked;store.save();toast(this.checked?'Pedidos do QR precisam de aprovação':'Pedidos do QR vão direto para a cozinha','good')">
+      <span>Pedidos do QR Code precisam de aprovação do garçom/caixa</span></label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+      <button class="btn pri" onclick="imprimirQRMesas()">Imprimir QR Codes das mesas</button>
+      ${(db.mesas||[]).length?`<button class="btn gho" onclick="window.open('${baseURL()}?loja=${currentUser.uid}&mesa=${db.mesas[0].id}','_blank')">Ver cardápio do cliente</button>`:''}
+    </div>
+    <label class="fl" style="margin-top:14px">PIN do gerente (para sair do modo garçom/cozinha)</label>
+    <div style="display:flex;gap:8px"><input class="finput mono" id="cfgPin" type="password" inputmode="numeric" maxlength="8" value="${esc(db.config.pinGerente||'')}" placeholder="opcional"><button class="btn gho" style="margin-bottom:12px" onclick="db.config.pinGerente=$('#cfgPin').value.trim();store.save();toast('PIN salvo','good')">Salvar</button></div>
+  </div>
+  <div class="cfg-card">
+    <h3>Cozinha · impressora térmica</h3>
+    <p>Cada pedido (garçom, QR ou caixa) sai impresso na cozinha só com os itens marcados "Vai para a cozinha" no cadastro.</p>
+    <label class="cfg-chk"><input type="checkbox" ${cozinhaOn()?'checked':''} onchange="toggleModulo('cozinha',this.checked);renderConfig()"><span><b>Enviar pedidos para a cozinha</b></span></label>
+    <label class="cfg-chk"><input type="checkbox" ${impAqui?'checked':''} onchange="toggleImpressaoAqui(this.checked)"><span>Este computador imprime os pedidos da cozinha</span></label>
+    <label class="cfg-chk"><input type="checkbox" ${db.config.cozinhaBalcao?'checked':''} onchange="db.config.cozinhaBalcao=this.checked;store.save()"><span>Mandar também vendas do balcão (viagem)</span></label>
+    <label class="fl" style="margin-top:8px">Link da estação da cozinha (outro PC/tablet com a impressora)</label>
+    <div style="display:flex;gap:8px"><input class="finput mono" style="font-size:12px" readonly value="${esc(linkK)}" onclick="this.select()"><button class="btn gho" style="margin-bottom:12px" onclick="copiarTxt('${esc(linkK)}')">Copiar</button></div>
+    <button class="btn gho" onclick="testeImpressao()">Testar impressão</button>
+    <details style="margin-top:12px"><summary>Imprimir sem a janela de confirmação</summary><ol>
+      <li>No Windows, deixe a impressora térmica como <b>impressora padrão</b> (papel 80 mm, sem margens).</li>
+      <li>Crie um atalho do Chrome com o destino:<br><span class="mono" style="font-size:11px;word-break:break-all">"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --kiosk-printing --app=${esc(linkK)}</span></li>
+      <li>Abra por esse atalho e deixe a janela aberta durante o expediente.</li></ol></details>
+  </div>
+  <div class="cfg-card">
+    <h3>Nota fiscal (NFC-e)</h3>
+    <p>Sistema preparado: cada venda gera o documento da NFC-e com os dados fiscais dos produtos e entra numa fila. A emissão na SEFAZ liga quando o provedor fiscal for contratado.</p>
+    <div style="font-size:13px;margin-bottom:10px">Emitente: <b>${esc(F.razao||'não cadastrado')}</b>${F.cnpj?' · CNPJ <span class="mono">'+esc(F.cnpj)+'</span>':''}<br>
+      Ambiente: <b>${F.ambiente==='producao'?'Produção':'Homologação'}</b> · Na fila: <b>${nFila}</b> · Próximo nº: <b class="mono">${F.proximoNumero}</b></div>
+    <label class="cfg-chk"><input type="checkbox" ${F.ativo?'checked':''} onchange="db.config.fiscal.ativo=this.checked;store.save();renderConfig()"><span>Ativar NFC-e nesta conta</span></label>
+    <label class="cfg-chk"><input type="checkbox" ${F.auto?'checked':''} ${F.ativo?'':'disabled'} onchange="db.config.fiscal.auto=this.checked;store.save()"><span>Preparar NFC-e automaticamente ao finalizar cada venda</span></label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+      <button class="btn pri" onclick="abrirFiscal()">Dados do emitente</button>
+      <button class="btn gho" onclick="exportarFilaNFCe()">Exportar fila (JSON)</button>
+    </div>
+  </div>
+  <div class="cfg-card">
+    <h3>Este aparelho</h3><p>Troque a função deste aparelho. O caixa continua sendo o computador principal.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn gho" onclick="trocarModoAparelho('garcom')">Usar como Garçom</button>
+      <button class="btn gho" onclick="trocarModoAparelho('cozinha')">Usar como Estação da Cozinha</button>
+    </div>
+  </div>`);
+};
+function copiarTxt(t){try{navigator.clipboard.writeText(t).then(()=>toast('Link copiado','good'),()=>toast('Selecione e copie o link'));}catch(e){toast('Selecione e copie o link');}}
+function toggleImpressaoAqui(on){
+  lsSet('rz_imprime_cozinha',on?'1':'0');
+  if(on){iniciarImpressoraCozinha();toast('Este computador vai imprimir os pedidos da cozinha','good');}
+  else{pararImpressoraCozinha();toast('Impressão de cozinha desligada neste computador');}
+}
+function trocarModoAparelho(novo){
+  const exec=()=>{lsSet('rz_modo',novo);location.href=baseURL();};
+  if(novo==='caixa'&&MODO!=='caixa'&&db.config.pinGerente){
+    openModal('PIN do gerente',`<input class="finput mono" id="pinIn" type="password" inputmode="numeric" placeholder="PIN">`,()=>{
+      if($('#pinIn').value!==db.config.pinGerente){toast('PIN incorreto','bad');return false;} exec();});
+  }else exec();
+}
+
+/* ---------- edição de produto: campos novos ---------- */
+function prodExtrasHTML(p){
+  const cats=[...new Set(db.produtos.map(x=>x.categoria).filter(Boolean))].sort();
+  return `
+    <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:160px"><label class="fl">Categoria (cardápio)</label><input class="finput" id="pCat" list="catsList" value="${p?esc(p.categoria||''):''}" placeholder="Ex.: Fondues, Bebidas">
+        <datalist id="catsList">${cats.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
+      <div style="flex:2;min-width:200px"><label class="fl">Descrição no cardápio (opcional)</label><input class="finput" id="pDescr" value="${p?esc(p.descricao||''):''}" placeholder="Ex.: queijos, pão italiano e legumes"></div>
+    </div>
+    <label class="cfg-chk"><input type="checkbox" id="pCoz" ${(p?p.cozinha!==false:true)?'checked':''}> Vai para a cozinha <span style="color:var(--faint);font-size:12px">(sai impresso na comanda da cozinha)</span></label>
+    <label class="cfg-chk"><input type="checkbox" id="pCard" ${(!p||p.cardapio!==false)?'checked':''}> Aparece no cardápio do QR Code e do garçom</label>
+    <details style="margin-top:8px"><summary style="cursor:pointer;font-weight:700;font-size:13px;color:var(--muted)">Dados fiscais (NFC-e)</summary>
+      <div style="display:flex;gap:12px;margin-top:10px">
+        <div style="flex:1"><label class="fl">NCM (8 dígitos)</label><input class="finput mono" id="pNcm" value="${p?esc(p.ncm||''):''}" placeholder="ex.: 21069090"></div>
+        <div style="flex:1"><label class="fl">CFOP</label><input class="finput mono" id="pCfop" value="${p?esc(p.cfop||'5102'):'5102'}"></div>
+        <div style="flex:1"><label class="fl">CSOSN / CST</label><input class="finput mono" id="pCsosn" value="${p?esc(p.csosn||'102'):'102'}"></div>
+      </div>
+      <p style="color:var(--faint);font-size:12px;margin:0">Confirme NCM e CSOSN com o contador.</p></details>`;
+}
+function prodExtrasDados(){
+  return {categoria:$('#pCat').value.trim(),descricao:$('#pDescr').value.trim(),cozinha:$('#pCoz').checked,cardapio:$('#pCard').checked,
+    ncm:soDig($('#pNcm').value),cfop:soDig($('#pCfop').value)||'5102',csosn:$('#pCsosn').value.trim()||'102'};
+}
+
+/* =====================================================================
+   5) MODOS AUXILIARES: GARÇOM e ESTAÇÃO DA COZINHA
+   ===================================================================== */
+let auxPronto=false;
+function auxEl(){document.body.classList.add('aux-mode');const a=document.getElementById('authContainer');a.style.display='block';document.getElementById('appContainer').style.display='none';return a;}
+function iniciarModoAuxiliar(){
+  auxPronto=false;
+  showLoading(MODO==='garcom'?'Abrindo modo garçom…':'Abrindo estação da cozinha…');
+  const u=fsdb.collection('empresas').doc(currentUser.uid).onSnapshot(doc=>{
+    try{db=migrate(doc.exists&&doc.data().dados?JSON.parse(doc.data().dados):db);}catch(e){console.error(e);}
+    auxPronto=true; renderAux();
+  },err=>{console.error(err);toast('Erro ao carregar os dados','bad');});
+  unsubs.push(u);
+  if(MODO==='garcom') iniciarPedidosGarcom();
+  else{iniciarImpressoraCozinha();iniciarHistoricoCozinha();}
+}
+function renderAux(){if(!auxPronto||!currentUser)return;if(MODO==='garcom')renderGarcom();else if(MODO==='cozinha')renderCozinha();}
+function auxPreservar(fn,resetar){
+  const a=auxEl(); const sc=a.querySelector('.aux'); const top=sc?sc.scrollTop:0;
+  const ae=document.activeElement; const aeId=ae&&ae.id&&a.contains(ae)?ae.id:null; let sel=null; try{sel=ae.selectionStart}catch(e){}
+  a.innerHTML=fn();
+  const sc2=a.querySelector('.aux'); if(sc2&&!resetar) sc2.scrollTop=top;
+  if(aeId){const el=document.getElementById(aeId);if(el){el.focus();try{if(sel!==null)el.setSelectionRange(sel,sel);}catch(e){}}}
+}
+function sairModoAux(){
+  openModal('Opções do aparelho',`
+    ${MODO==='garcom'?`<button class="action-row" onclick="closeModal();gTrocarNome()"><span class="al">Trocar nome do garçom (${esc(gNome()||'—')})</span></button>`:''}
+    <button class="action-row" onclick="closeModal();trocarModoAparelho('caixa')"><span class="al">Usar este aparelho como Caixa (PDV completo)</span></button>
+    ${MODO!=='cozinha'?`<button class="action-row" onclick="closeModal();trocarModoAparelho('cozinha')"><span class="al">Usar como Estação da Cozinha</span></button>`:''}
+    ${MODO!=='garcom'?`<button class="action-row" onclick="closeModal();trocarModoAparelho('garcom')"><span class="al">Usar como Garçom</span></button>`:''}
+    <button class="action-row" onclick="closeModal();doLogout()"><span class="al" style="color:var(--danger)">Sair da conta</span></button>`,null);
+}
+
+/* ---------- GARÇOM ---------- */
+let gTela='mesas', gMesaId=null, gCart=[], gBusca='', gCat='', gCats=[], gPedidos=[], gInit=false, gReset=false;
+function gNome(){return lsGet('rz_garcom')||'';}
+function gTrocarNome(cb){
+  openModal('Nome do garçom',`<input class="finput" id="gNomeIn" value="${esc(gNome())}" placeholder="Seu nome">`,()=>{
+    const n=$('#gNomeIn').value.trim(); if(!n){toast('Informe seu nome','bad');return false;}
+    lsSet('rz_garcom',n.slice(0,30)); renderAux(); if(typeof cb==='function') setTimeout(cb,60);
+  });
+}
+function iniciarPedidosGarcom(){
+  const u=colPedidos().where('status','in',['aguardando','aprovado','chamado']).onSnapshot(s=>{
+    const novos=[];s.forEach(d=>novos.push({...d.data(),_id:d.id}));
+    const antes=new Set(gPedidos.map(p=>p._id));
+    if(gInit&&novos.some(p=>!antes.has(p._id)&&(p.status==='aguardando'||p.status==='chamado'))){beep(2);try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}}
+    gPedidos=novos; gInit=true; renderAux();
+  },err=>console.error(err));
+  unsubs.push(u);
+}
+function gAlertasHTML(){
+  return gPedidos.filter(p=>p.status==='aguardando'||p.status==='chamado').sort((a,b)=>a.ts-b.ts).map(p=>{
+    const t=p.tipo==='chamado'?'está chamando':p.tipo==='conta'?'pediu a conta':'fez pedido pelo QR ('+(p.itens||[]).reduce((s,i)=>s+i.qtd,0)+' itens)';
+    const btn=p.status==='aguardando'?`<button class="btn pri" onclick="gVerQR('${p._id}')">Ver</button>`:`<button class="btn gho" onclick="atenderChamado('${p._id}')">OK</button>`;
+    return `<div class="alert-row"><div class="grow"><b>${esc(p.mesaNome||'')}</b> ${t}${p.cliente?' · '+esc(p.cliente):''}<div style="color:var(--faint);font-size:12px">${horaDe(p.ts)}</div></div>${btn}</div>`;
+  }).join('');
+}
+function gVerQR(id){
+  const p=gPedidos.find(x=>x._id===id); if(!p) return;
+  openModal('Pedido QR · '+esc(p.mesaNome||''),(p.cliente?`<div style="color:var(--muted);margin-bottom:6px">Cliente: ${esc(p.cliente)}</div>`:'')
+    +(p.itens||[]).map(i=>`<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>${i.qtd}x</b> ${esc(i.nome)}${i.obs?`<div style="color:var(--accent);font-size:13px">${esc(i.obs)}</div>`:''}</div>`).join(''),null,
+    `<button class="cancel" style="color:var(--danger)" onclick="recusarPedido('${id}');closeModal()">Recusar</button><button class="ok" onclick="aprovarPedido('${id}');closeModal()">Aprovar e enviar</button>`);
+}
+function gTotalMesa(m){return (m.comanda||[]).reduce((s,i)=>s+i.preco*i.qtd,0);}
+function renderGarcom(){const r=gReset;gReset=false;auxPreservar(()=>gTela==='mesa'?gMesaHTML():gMesasHTML(),r);}
+function gTopo(titulo,esq,dir){return `<div class="aux-top">${esq||`<span class="sg">${esc(db.config.sigla||'RZ')}</span>`}<div class="ttl">${titulo}</div>${dir||''}</div>`;}
+function gMesasHTML(){
+  const mesas=db.mesas||[];
+  return `<div class="aux">${gTopo(esc(db.config.nomeLoja)+' · Garçom','',`<button class="btn gho" onclick="sairModoAux()">${esc(gNome()||'Opções')} ⋯</button>`)}
+  <div class="aux-body">${gAlertasHTML()}
+    ${mesas.length?`<div class="mesa-grid">${mesas.map(m=>{
+      const oc=(m.comanda||[]).length>0; const env=gPedidos.filter(p=>p.mesaId===m.id&&p.status==='aprovado').length;
+      const min=m.abertaEm?Math.floor((Date.now()-m.abertaEm)/60000):0;
+      return `<div class="mesa-card ${oc||env?'ocup':'livre'}" onclick="gAbrirMesa('${m.id}')"><div style="font-weight:800;font-size:17px">${esc(m.nome)}</div>
+        <div style="margin-top:auto">${oc?`<div class="mono" style="font-size:19px;font-weight:800;color:#ef8f3c">${money(gTotalMesa(m))}</div><div style="font-size:12px;color:var(--muted)">há ${min} min</div>`:`<div style="color:var(--money);font-weight:700">Livre</div>`}
+        ${m.contaPedida?'<span class="mtag conta">CONTA</span>':''}${env?'<span class="mtag qr">enviando…</span>':''}</div></div>`;}).join('')}</div>`
+    :`<div class="ent-card" style="text-align:center;color:var(--muted)">Nenhuma mesa cadastrada. Cadastre as mesas no caixa (Configurações › Mesas).</div>`}
+  </div></div>`;
+}
+function gAbrirMesa(id){gMesaId=id;gTela='mesa';gCart=[];gBusca='';gCat='';gReset=true;renderGarcom();}
+function gVoltar(){
+  const sai=()=>{gCart=[];gTela='mesas';gReset=true;renderGarcom();};
+  if(gCart.length) confirmModal('Descartar pedido?','Os itens ainda não foram enviados.',sai); else sai();
+}
+function gMesaHTML(){
+  const m=(db.mesas||[]).find(x=>x.id===gMesaId); if(!m){gTela='mesas';return gMesasHTML();}
+  gCats=[...new Set(db.produtos.filter(p=>p.cardapio!==false).map(p=>p.categoria||'').filter(Boolean))].sort();
+  const q=gBusca.toLowerCase();
+  const prods=db.produtos.filter(p=>p.cardapio!==false&&(!gCat||p.categoria===gCat)&&p.nome.toLowerCase().includes(q));
+  const enviando=gPedidos.filter(p=>p.mesaId===m.id&&p.status==='aprovado');
+  const nCart=gCart.reduce((s,i)=>s+i.qtd,0), totCart=gCart.reduce((s,i)=>s+i.preco*i.qtd,0);
+  const linha='display:flex;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px';
+  return `<div class="aux">${gTopo(esc(m.nome),`<button class="back" onclick="gVoltar()" style="padding:6px 12px">‹ Mesas</button>`,`<div class="mono" style="font-weight:800;color:#ef8f3c">${money(gTotalMesa(m))}</div>`)}
+  <div class="aux-body">${gAlertasHTML()}
+    ${gCart.length?`<div class="sec-t">Novo pedido · ${nCart} item(s)</div><div class="card">${gCart.map((i,ix)=>`<div style="padding:10px 12px;border-bottom:1px solid var(--line)">
+      <div style="display:flex;align-items:center;gap:10px"><div style="flex:1;font-weight:700">${esc(i.nome)}</div><div class="qtybox"><button onclick="gQtd(${ix},-1)">−</button><b class="mono">${i.qtd}</b><button onclick="gQtd(${ix},1)">+</button></div></div>
+      <input class="finput" id="gobs${ix}" style="margin:8px 0 0;padding:9px 12px;font-size:14px" placeholder="Observação (sem cebola, bem passado…)" value="${esc(i.obs)}" oninput="gCart[${ix}].obs=this.value"></div>`).join('')}</div>`:''}
+    <div class="sec-t">Cardápio</div>
+    <input class="finput" id="gBuscaIn" placeholder="Buscar produto…" value="${esc(gBusca)}" oninput="gBusca=this.value;renderGarcom()">
+    ${gCats.length?`<div class="cats"><button class="chip ${!gCat?'on':''}" onclick="gCat='';renderGarcom()">Todos</button>${gCats.map((c,ix)=>`<button class="chip ${gCat===c?'on':''}" onclick="gCat=gCats[${ix}];renderGarcom()">${esc(c)}</button>`).join('')}</div>`:''}
+    <div class="card">${prods.map(p=>{const off=p.controla&&p.estoque<=0;const n=gCart.filter(i=>i.id===p.id).reduce((s,i)=>s+i.qtd,0);
+      return `<div class="g-prod ${off?'off':''}" onclick="gAdd('${p.id}')"><div class="nm">${esc(p.nome)}${n?` <span class="mtag qr" style="margin:0">${n}</span>`:''}${off?'<div class="ds" style="color:var(--danger)">sem estoque</div>':''}</div><div class="pr mono">${money(p.preco)}</div><div class="add">+</div></div>`;}).join('')||'<div style="padding:14px;color:var(--faint)">Nenhum produto</div>'}</div>
+    <div class="sec-t">Consumo da mesa</div>
+    <div class="card">${(m.comanda||[]).map(i=>`<div style="${linha}"><div style="flex:1">${i.qtd}x ${esc(i.nome)}${i.obs?`<div style="color:var(--accent);font-size:12px">${esc(i.obs)}</div>`:''}</div><div class="mono">${money(i.preco*i.qtd)}</div></div>`).join('')}
+      ${enviando.map(p=>(p.itens||[]).map(i=>`<div style="${linha};opacity:.6"><div style="flex:1">${i.qtd}x ${esc(i.nome)} <i style="font-size:11px">(lançando no caixa…)</i></div></div>`).join('')).join('')}
+      ${!(m.comanda||[]).length&&!enviando.length?'<div style="padding:14px;color:var(--faint)">Mesa sem consumo ainda</div>':''}</div>
+    <button class="btn gho" style="width:100%;margin-top:14px;padding:14px" ${m.contaPedida?'disabled':''} onclick="gPedirConta()">${m.contaPedida?'Conta já solicitada ao caixa':'Pedir a conta ao caixa'}</button>
+  </div>
+  <div class="sticky-bar"><button class="big" ${gCart.length?'':'disabled'} onclick="gEnviar()">Enviar pedido${gCart.length?` · ${nCart} item(s) · ${money(totCart)}`:''}</button></div></div>`;
+}
+function gAdd(id){
+  const p=db.produtos.find(x=>x.id===id); if(!p) return;
+  const ex=gCart.find(i=>i.id===id&&!i.obs);
+  if(ex) ex.qtd++; else gCart.push({id:p.id,nome:p.nome,preco:p.preco,qtd:1,obs:''});
+  renderGarcom(); toast('+1 '+p.nome);
+}
+function gQtd(ix,d){const i=gCart[ix];if(!i)return;i.qtd+=d;if(i.qtd<=0)gCart.splice(ix,1);renderGarcom();}
+function gEnviar(){
+  const m=(db.mesas||[]).find(x=>x.id===gMesaId); if(!m||!gCart.length) return;
+  if(!gNome()){gTrocarNome(()=>gEnviar());return;}
+  const itens=gCart.map(i=>({id:i.id,nome:i.nome,qtd:i.qtd,obs:(i.obs||'').trim(),preco:i.preco}));
+  colPedidos().add({tipo:'pedido',mesaId:m.id,mesaNome:m.nome,itens,origem:'garcom',garcom:gNome(),status:'aprovado',impresso:false,ts:Date.now()})
+    .catch(e=>{console.error(e);toast('Erro ao enviar o pedido','bad');});
+  gCart=[];gTela='mesas';gReset=true;toast('Pedido enviado para a cozinha ✓','good');renderGarcom();
+}
+function gPedirConta(){
+  const m=(db.mesas||[]).find(x=>x.id===gMesaId); if(!m) return;
+  colPedidos().add({tipo:'conta',mesaId:m.id,mesaNome:m.nome,itens:[],origem:'garcom',garcom:gNome(),status:'chamado',impresso:true,ts:Date.now()})
+    .then(()=>toast('Caixa avisado: '+m.nome+' quer a conta','good')).catch(()=>toast('Erro ao avisar o caixa','bad'));
+}
+
+/* ---------- ESTAÇÃO DA COZINHA ---------- */
+let kHist=[];
+function iniciarHistoricoCozinha(){
+  const u=colPedidos().where('ts','>',Date.now()-10*3600e3).onSnapshot(s=>{
+    kHist=[];s.forEach(d=>{const p=d.data();if((p.tipo||'pedido')==='pedido')kHist.push({...p,_id:d.id});});
+    kHist.sort((a,b)=>b.ts-a.ts);renderAux();
+  },err=>console.error(err));
+  unsubs.push(u);
+}
+function renderCozinha(){
+  auxPreservar(()=>{
+    const lista=kHist.filter(p=>p.status!=='recusado'&&(p.itens||[]).some(i=>ehCozinha(i.id))).slice(0,60);
+    return `<div class="aux">${gTopo('Cozinha · '+esc(db.config.nomeLoja),'',`<button class="btn gho" onclick="testeImpressao()">Testar</button><button class="btn gho" onclick="sairModoAux()">⋯</button>`)}
+    <div class="aux-body">
+      <div class="ent-card" style="font-size:13px;color:var(--muted)">Deixe esta tela aberta: cada pedido novo sai automaticamente na impressora padrão deste aparelho. Para imprimir sem a janela de confirmação, abra pelo atalho do Chrome com <b class="mono">--kiosk-printing</b> (instruções em Configurações › Cozinha, no caixa).</div>
+      ${lista.map(p=>{
+        const org=p.origem==='qr'?'QR Code':p.origem==='garcom'?('Garçom '+esc(p.garcom||'')):'Caixa';
+        const st=p.status==='aguardando'?'<span style="color:var(--accent)">aguardando aprovação</span>':p.impresso?'<span style="color:var(--money)">impresso ✓</span>':'imprimindo…';
+        return `<div class="k-card ${p.impresso?'':'novo'}">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:18px">${esc(p.mesaNome||'Pedido')}</b><span class="mono" style="color:var(--muted)">${horaDe(p.ts)}</span></div>
+          <div style="color:var(--muted);font-size:12px;margin:2px 0 8px">${org} · ${st}</div>
+          ${(p.itens||[]).filter(i=>ehCozinha(i.id)).map(i=>`<div style="font-size:16px;font-weight:700;margin:4px 0">${i.qtd} x ${esc(i.nome)}</div>${i.obs?`<div style="color:var(--accent);font-weight:700;margin:-2px 0 4px 14px">» ${esc(i.obs)}</div>`:''}`).join('')}
+          <div style="text-align:right;margin-top:8px"><button class="btn gho" onclick="reimprimir('${p._id}')">Reimprimir</button></div></div>`;
+      }).join('')||'<div style="color:var(--faint);text-align:center;padding:40px">Nenhum pedido nas últimas horas.</div>'}
+    </div></div>`;
+  });
+}
+function reimprimir(id){const p=kHist.find(x=>x._id===id);if(p)imprimirTicket(ticketCozinhaHTML(p));}
+
+/* =====================================================================
+   6) CARDÁPIO DO CLIENTE (QR Code na mesa) — não precisa de login
+   ===================================================================== */
+let qrCard=null, qrCart=[], qrCat='', qrCats=[], qrTela='menu', qrNome='', qrCooldown=0, qrEnviados=[], qrEnviando=false;
+async function iniciarQR(){
+  const a=auxEl();
+  a.innerHTML='<div class="loading-screen"><div class="spinner"></div>Abrindo cardápio…</div>';
+  try{const d=await fsdb.collection('cardapios').doc(QR_LOJA).get();if(!d.exists)throw 0;qrCard=d.data();}
+  catch(e){a.innerHTML='<div class="loading-screen" style="text-align:center;padding:20px">Cardápio indisponível no momento.<br>Por favor, chame o garçom 🙂</div>';return;}
+  try{qrEnviados=JSON.parse(sessionStorage.getItem('rz_qr_'+QR_MESA)||'[]');}catch(e){qrEnviados=[];}
+  try{qrNome=sessionStorage.getItem('rz_qr_nome')||'';}catch(e){}
+  document.title=(qrCard.nome||'Cardápio');
+  renderQR();
+}
+function qrMesa(){return (qrCard.mesas||[]).find(m=>m.id===QR_MESA);}
+function qrHistHTML(){
+  if(!qrEnviados.length) return '';
+  return `<div class="sec-t" style="text-align:left">Já pedido nesta mesa</div><div class="card" style="text-align:left">${qrEnviados.map(e=>e.itens.map(i=>`<div style="padding:9px 12px;border-bottom:1px solid var(--line);font-size:14px">${i.qtd}x ${esc(i.nome)} <span style="color:var(--faint);font-size:12px">· ${e.hora}</span></div>`).join('')).join('')}</div>`;
+}
+function renderQR(reset){
+  const m=qrMesa();
+  if(!m){auxEl().innerHTML='<div class="loading-screen" style="text-align:center;padding:20px">Este QR Code está desatualizado.<br>Por favor, chame o garçom 🙂</div>';return;}
+  const nomeLoja=esc(qrCard.nome||'Cardápio');
+  const prods=qrCard.produtos||[];
+  const nCart=qrCart.reduce((s,i)=>s+i.qtd,0), tot=qrCart.reduce((s,i)=>s+i.preco*i.qtd,0);
+  const topo=(esq)=>`<div class="aux-top">${esq||''}<div class="ttl">${nomeLoja}</div><span class="chip on" style="padding:6px 12px">${esc(m.nome)}</span></div>`;
+  auxPreservar(()=>{
+    if(qrTela==='ok') return `<div class="aux">${topo()}<div class="aux-body" style="text-align:center">
+      <div style="width:70px;height:70px;border-radius:50%;background:var(--money);color:#04200f;display:grid;place-items:center;font-size:36px;margin:30px auto 0">✓</div>
+      <div style="font-size:22px;font-weight:800;margin:14px 0 6px">Pedido enviado!</div>
+      <div style="color:var(--muted)">${qrCard.aprovacao?'Um garçom vai confirmar seu pedido em instantes.':'Seu pedido já foi para a cozinha.'}</div>
+      <button class="btn pri" style="margin-top:22px;padding:14px 24px" onclick="qrTela='menu';renderQR(true)">Pedir mais</button>
+      ${qrHistHTML()}</div></div>`;
+    if(qrTela==='cart') return `<div class="aux">${topo(`<button class="back" style="padding:6px 12px" onclick="qrTela='menu';renderQR(true)">‹ Cardápio</button>`)}<div class="aux-body">
+      <div class="sec-t">Seu pedido</div>
+      <div class="card">${qrCart.map((i,ix)=>`<div style="padding:10px 12px;border-bottom:1px solid var(--line)">
+        <div style="display:flex;align-items:center;gap:10px"><div style="flex:1;font-weight:700">${esc(i.nome)}<div class="mono" style="color:var(--muted);font-size:12px;font-weight:600">${money(i.preco*i.qtd)}</div></div>
+        <div class="qtybox"><button onclick="qrQtd(${ix},-1)">−</button><b class="mono">${i.qtd}</b><button onclick="qrQtd(${ix},1)">+</button></div></div>
+        <input class="finput" id="qobs${ix}" maxlength="140" style="margin:8px 0 0;padding:9px 12px;font-size:14px" placeholder="Observação (opcional)" value="${esc(i.obs)}" oninput="qrCart[${ix}].obs=this.value"></div>`).join('')||'<div style="padding:14px;color:var(--faint)">Carrinho vazio</div>'}</div>
+      <label class="fl" style="margin-top:14px">Seu nome (opcional)</label>
+      <input class="finput" id="qrNomeIn" maxlength="40" value="${esc(qrNome)}" placeholder="Para o garçom te encontrar" oninput="qrNome=this.value">
+      <div style="display:flex;justify-content:space-between;font-weight:800;font-size:18px;margin-top:4px"><span>Total</span><span class="mono">${money(tot)}</span></div>
+      <p style="color:var(--faint);font-size:12px">Valores conferidos pelo caixa no fechamento da conta.</p>
+    </div><div class="sticky-bar"><button class="big" ${qrCart.length&&!qrEnviando?'':'disabled'} onclick="qrEnviar()">${qrEnviando?'Enviando…':'Enviar pedido'}</button></div></div>`;
+    qrCats=[...new Set(prods.map(p=>p.categoria).filter(Boolean))].sort();
+    const grupos=(qrCat?[qrCat]:[...qrCats,'']).map(c=>({c,ps:prods.filter(p=>(p.categoria||'')===c)})).filter(g=>g.ps.length);
+    return `<div class="aux">${topo()}<div class="aux-body">
+      <div style="display:flex;gap:8px;margin-bottom:12px"><button class="btn gho" style="flex:1" onclick="qrChamar('chamado')">🙋 Chamar garçom</button><button class="btn gho" style="flex:1" onclick="qrChamar('conta')">🧾 Pedir a conta</button></div>
+      ${qrCats.length?`<div class="cats"><button class="chip ${!qrCat?'on':''}" onclick="qrCat='';renderQR(true)">Todos</button>${qrCats.map((c,ix)=>`<button class="chip ${qrCat===c?'on':''}" onclick="qrCat=qrCats[${ix}];renderQR(true)">${esc(c)}</button>`).join('')}</div>`:''}
+      ${grupos.map(g=>`<div class="sec-t">${esc(g.c||(qrCats.length?'Outros':'Cardápio'))}</div><div class="card">${g.ps.map(p=>{const n=qrCart.filter(i=>i.id===p.id).reduce((s,i)=>s+i.qtd,0);
+        return `<div class="g-prod ${p.disp?'':'off'}" onclick="qrAdd('${p.id}')"><div class="nm">${esc(p.nome)}${n?` <span class="mtag qr" style="margin:0">${n}</span>`:''}${p.descricao?`<div class="ds">${esc(p.descricao)}</div>`:''}${p.disp?'':'<div class="ds" style="color:var(--danger)">indisponível</div>'}</div><div class="pr mono">${money(p.preco)}</div><div class="add">+</div></div>`;}).join('')}</div>`).join('')||'<div style="color:var(--faint);text-align:center;padding:30px">Cardápio vazio</div>'}
+      ${qrHistHTML()}
+    </div>${qrCart.length?`<div class="sticky-bar"><button class="big" onclick="qrTela='cart';renderQR(true)">Ver pedido · ${nCart} item(s) · ${money(tot)}</button></div>`:''}</div>`;
+  },reset);
+}
+function qrAdd(id){
+  const p=(qrCard.produtos||[]).find(x=>x.id===id); if(!p||!p.disp) return;
+  const ex=qrCart.find(i=>i.id===id&&!i.obs);
+  if(ex) ex.qtd=Math.min(20,ex.qtd+1); else qrCart.push({id:p.id,nome:p.nome,preco:p.preco,qtd:1,obs:''});
+  renderQR(); toast('+1 '+p.nome);
+}
+function qrQtd(ix,d){const i=qrCart[ix];if(!i)return;i.qtd=Math.min(20,i.qtd+d);if(i.qtd<=0)qrCart.splice(ix,1);if(!qrCart.length)qrTela='menu';renderQR();}
+async function qrEnviar(){
+  const m=qrMesa(); if(!m||!qrCart.length||qrEnviando) return;
+  qrEnviando=true; renderQR();
+  const nome=(qrNome||'').trim().slice(0,40);
+  try{sessionStorage.setItem('rz_qr_nome',nome);}catch(e){}
+  const itens=qrCart.slice(0,40).map(i=>({id:i.id,nome:i.nome,qtd:i.qtd,obs:(i.obs||'').trim().slice(0,140),preco:i.preco}));
+  try{
+    await colPedidos(QR_LOJA).add({tipo:'pedido',mesaId:m.id,mesaNome:m.nome,itens,origem:'qr',cliente:nome,status:'aguardando',impresso:false,ts:Date.now()});
+    qrEnviados.push({hora:horaDe(Date.now()),itens});
+    try{sessionStorage.setItem('rz_qr_'+QR_MESA,JSON.stringify(qrEnviados));}catch(e){}
+    qrCart=[]; qrTela='ok';
+  }catch(e){console.error(e);toast('Não foi possível enviar. Tente de novo ou chame o garçom.','bad');}
+  qrEnviando=false; renderQR(true);
+}
+async function qrChamar(tipo){
+  if(Date.now()<qrCooldown){toast('Já avisamos! Aguarde um instante 🙂');return;}
+  const m=qrMesa(); if(!m) return;
+  qrCooldown=Date.now()+45000;
+  try{
+    await colPedidos(QR_LOJA).add({tipo,mesaId:m.id,mesaNome:m.nome,itens:[],origem:'qr',cliente:(qrNome||'').slice(0,40),status:'chamado',impresso:true,ts:Date.now()});
+    toast(tipo==='conta'?'Pedimos a sua conta ✓':'Garçom chamado ✓','good');
+  }catch(e){qrCooldown=0;toast('Não foi possível avisar. Tente novamente.','bad');}
+}
+
+/* ---------- arranque do caixa ---------- */
+function iniciarCaixaExtras(){
+  db=migrate(db);
+  if(!$('#pedBadge')){const ui=$('#userInfo');if(ui)ui.insertAdjacentHTML('beforebegin','<button id="pedBadge" class="ped-badge" onclick="abrirPreVendas()"></button>');}
+  iniciarPedidosCaixa();
+  if(lsGet('rz_imprime_cozinha')==='1') iniciarImpressoraCozinha();
+  publicarCardapio(true);
+}
+
 /* ============ Start ============ */
 // Auth listener handles startup — see onAuthStateChanged above
-showLoading('Conectando...');
+if(MODO==='qr') iniciarQR(); else showLoading('Conectando...');
 </script>
 </body>
 </html>
