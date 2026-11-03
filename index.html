@@ -5178,6 +5178,197 @@ renderConfig=function(){
   </div>`);
 };
 
+
+/* =====================================================================
+   RZand+ 6 — Preço de compra × venda, custos por produto (embalagem,
+   transporte), impostos, compras de mercadoria e DRE no Financeiro
+   ===================================================================== */
+const _migrate6=migrate;
+migrate=function(d){
+  d=_migrate6(d); if(!d) return d;
+  if(!d.config.fin) d.config.fin={impostoPct:0,taxaPrevistaPct:0};
+  (d.produtos||[]).forEach(p=>{if(p.custoEmb===undefined)p.custoEmb=0;if(p.custoFrete===undefined)p.custoFrete=0;});
+  return d;
+};
+function finCfg(){return db.config.fin||{impostoPct:0,taxaPrevistaPct:0};}
+function taxaPrevista(){const f=finCfg();if(+f.taxaPrevistaPct)return +f.taxaPrevistaPct;const m=maquininhas()[0];return m?(+m.credito||0):0;}
+function pct(v,base){return base?(v/base*100):0;}
+function fmtPct(x){return (Math.round(x*10)/10).toLocaleString('pt-BR')+'%';}
+/* conta do lucro de uma unidade */
+function contaProduto(venda,compra,emb,frete){
+  const f=finCfg(); const imp=venda*(+f.impostoPct||0)/100, tx=venda*taxaPrevista()/100;
+  const bruto=venda-compra, real=venda-compra-emb-frete-imp-tx;
+  return {venda,compra,emb,frete,imp,tx,bruto,real,margemBruta:pct(bruto,venda),margemReal:pct(real,venda),markup:compra?pct(venda-compra,compra):0};
+}
+function boxLucroHTML(c){
+  const L=(a,b,cls)=>`<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13px" class="${cls||''}"><span>${a}</span><b class="mono">${b}</b></div>`;
+  if(!(c.venda>0)) return '<span style="color:var(--faint);font-size:13px">Preencha o preço de venda e o de compra para ver o lucro.</span>';
+  return L('Preço de venda',money(c.venda))+L('(−) Preço de compra',money(c.compra))
+    +`<div style="border-top:1px dashed var(--line2);margin:4px 0"></div>`+L('= Lucro bruto por unidade',money(c.bruto)+' · '+fmtPct(c.margemBruta),c.bruto<0?'neg':'')
+    +(c.emb?L('(−) Embalagem',money(c.emb)):'')+(c.frete?L('(−) Transporte / frete',money(c.frete)):'')
+    +(c.imp?L(`(−) Impostos (${fmtPct(+finCfg().impostoPct)})`,money(c.imp)):'')+(c.tx?L(`(−) Taxa de cartão (~${fmtPct(taxaPrevista())})`,money(c.tx)):'')
+    +`<div style="border-top:1px dashed var(--line2);margin:4px 0"></div>`
+    +`<div style="display:flex;justify-content:space-between;font-size:15px;font-weight:800;padding-top:2px"><span>= Sobra real por unidade</span><span class="mono" style="color:${c.real<0?'var(--danger)':'var(--money)'}">${money(c.real)} · ${fmtPct(c.margemReal)}</span></div>`
+    +(c.compra?`<div style="font-size:11.5px;color:var(--faint);margin-top:4px">Markup sobre o custo: ${fmtPct(c.markup)} · as despesas fixas da loja (aluguel, salários…) entram no Financeiro</div>`:'');
+}
+const _prodExtrasHTML6=prodExtrasHTML;
+prodExtrasHTML=function(p){
+  let h=_prodExtrasHTML6(p);
+  const bloco=`<div class="card" style="padding:12px 14px;margin-top:12px;background:var(--surface2)">
+    <b style="font-size:14px">Preço de compra e lucro</b>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
+      <div style="flex:1;min-width:120px"><label class="fl">Preço de compra (R$)</label><input class="finput mono" id="pCusto" type="number" step="0.01" value="${p&&p.custo?p.custo:''}" placeholder="quanto você paga"></div>
+      <div style="flex:1;min-width:110px"><label class="fl">Embalagem (R$/un.)</label><input class="finput mono" id="pEmb" type="number" step="0.01" value="${p&&p.custoEmb?p.custoEmb:''}" placeholder="0,00"></div>
+      <div style="flex:1;min-width:110px"><label class="fl">Transporte (R$/un.)</label><input class="finput mono" id="pFrete" type="number" step="0.01" value="${p&&p.custoFrete?p.custoFrete:''}" placeholder="0,00"></div>
+    </div>
+    <div id="lucroBox" style="background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px"></div>
+  </div>`;
+  return h.replace(/<div style="display:flex;gap:12px;margin-top:10px"><div style="flex:1"><label class="fl">Custo unitário[\s\S]*?<\/div><\/div>/,bloco);
+};
+const _prodExtrasDados6=prodExtrasDados;
+prodExtrasDados=function(){return {..._prodExtrasDados6(),custoEmb:r2(parseFloat($('#pEmb').value)||0),custoFrete:r2(parseFloat($('#pFrete').value)||0)};};
+const _editProduto6=editProduto;
+editProduto=function(id){
+  _editProduto6(id);
+  const pr=$('#pPreco'); if(pr){const l=pr.previousElementSibling;if(l)l.textContent='Preço de venda (R$)';}
+  const upd=()=>{const b=$('#lucroBox');if(!b)return;b.innerHTML=boxLucroHTML(contaProduto(parseFloat(($('#pPreco')||{}).value)||0,parseFloat(($('#pCusto')||{}).value)||0,parseFloat(($('#pEmb')||{}).value)||0,parseFloat(($('#pFrete')||{}).value)||0));};
+  ['pPreco','pCusto','pEmb','pFrete'].forEach(i=>{const e=$('#'+i);if(e)e.addEventListener('input',upd);}); upd();
+};
+/* cadastro: custo e margem em cada produto */
+const _renderCadastro6=renderCadastro;
+renderCadastro=function(){
+  _renderCadastro6();
+  view.querySelectorAll('table.tbl tbody tr').forEach(tr=>{
+    const b=tr.querySelector('.rowbtn.edit'); if(!b) return;
+    const id=(b.getAttribute('onclick').match(/editProduto\('([^']+)'\)/)||[])[1]; const p=db.produtos.find(x=>x.id===id); if(!p) return;
+    const tds=tr.querySelectorAll('td'); const tdPreco=tds[3]; if(!tdPreco) return;
+    if(p.custo){const c=contaProduto(p.preco,+p.custo,+p.custoEmb||0,+p.custoFrete||0);
+      tdPreco.insertAdjacentHTML('beforeend',`<div style="font-size:11.5px;color:var(--faint);font-weight:600">compra ${money(p.custo)}</div><div style="font-size:11.5px;font-weight:700;color:${c.real<0?'var(--danger)':'var(--money)'}">sobra ${money(c.real)} · ${fmtPct(c.margemReal)}</div>`);}
+    else tdPreco.insertAdjacentHTML('beforeend',`<div style="font-size:11.5px;color:#ffb547;font-weight:600">sem preço de compra</div>`);
+  });
+};
+/* venda guarda o custo do momento (o relatório não muda se o preço de compra mudar depois) */
+const _finalizar6=finalizarVenda;
+finalizarVenda=function(metodo,total,recebido){
+  const n=db.vendas.length;
+  _finalizar6(metodo,total,recebido);
+  if(db.vendas.length===n) return;
+  const v=db.vendas[0];
+  (v.itens||[]).forEach(it=>{const p=db.produtos.find(x=>x.id===it.id);if(p){it.custo=+p.custo||0;it.emb=+p.custoEmb||0;it.frete=+p.custoFrete||0;}});
+  v.impostoPct=+finCfg().impostoPct||0;
+  store.save();
+};
+/* entrada de estoque pede o preço de compra e vira "investimento" */
+function comPrecoCompra(abrir,getProd){
+  return function(...a){
+    abrir(...a);
+    const body=$('#modal .modal-body'); if(!body) return;
+    const p0=getProd();
+    body.insertAdjacentHTML('beforeend',`<label class="fl">Preço de compra por unidade (R$)</label><input class="finput mono" id="entCusto" type="number" step="0.01" value="${p0&&p0.custo?p0.custo:''}" placeholder="0,00">
+      <div style="font-size:12px;color:var(--faint);margin-top:-4px">Atualiza o preço de compra do produto e entra no Financeiro como compra de mercadoria.</div>`);
+    const sel=$('#entProd'); if(sel) sel.addEventListener('change',()=>{const p=db.produtos.find(x=>x.id===sel.value);$('#entCusto').value=p&&p.custo?p.custo:'';});
+    const ok=modalConfirm;
+    modalConfirm=function(){
+      const p=getProd(); const c=parseFloat(($('#entCusto')||{}).value);
+      const nMov=db.estoqueMov.length; const r=ok(); if(r===false) return false;
+      if(p&&c>0){p.custo=r2(c);}
+      const mv=db.estoqueMov[0];
+      if(p&&mv&&db.estoqueMov.length>nMov&&mv.tipo==='entrada'){mv.ts=Date.now();mv.custoUnit=+p.custo||0;mv.valor=r2((+p.custo||0)*mv.qtd);mv.produtoId=p.id;}
+      store.save(); return r;
+    };
+  };
+}
+let _entProdRef=null;
+entradaRapida=comPrecoCompra(entradaRapida,()=>_entProdRef);
+const _entradaRapida6=entradaRapida;
+entradaRapida=function(id){_entProdRef=db.produtos.find(x=>x.id===id);_entradaRapida6(id);};
+entradaEstoque=comPrecoCompra(entradaEstoque,()=>db.produtos.find(x=>x.id===(($('#entProd')||{}).value)));
+
+/* ---------- Financeiro: DRE completo ---------- */
+const _calcFin6=calcFinanceiro;
+calcFinanceiro=function(de,ate){
+  const f=_calcFin6(de,ate);
+  const t0=new Date(de+'T00:00:00').getTime(), t1=new Date(ate+'T23:59:59').getTime();
+  const vs=comArquivo(()=>db.vendas.filter(v=>{if(v.cancelada)return false;const t=vendaTs(v);return t>=t0&&t<=t1;}));
+  let cmv=0,emb=0,semCusto=0,imp=0;
+  vs.forEach(v=>{
+    const itens=v.itens||[]; const bruto=itens.reduce((s,i)=>s+i.preco*i.qtd,0);
+    const fator=bruto>0?Math.min(1,(v.valor-(v.taxa||0))/bruto):1;
+    itens.forEach(i=>{const p=db.produtos.find(x=>x.id===i.id)||{};
+      const c=i.custo!==undefined?i.custo:(+p.custo||0), e=(i.emb!==undefined?i.emb:(+p.custoEmb||0))+(i.frete!==undefined?i.frete:(+p.custoFrete||0));
+      cmv+=c*i.qtd; emb+=e*i.qtd; if(!c) semCusto+=i.preco*i.qtd*fator;});
+    const ip=v.impostoPct!==undefined?v.impostoPct:(+finCfg().impostoPct||0); imp+=v.valor*ip/100;
+  });
+  f.cmv=r2(cmv); f.embFrete=r2(emb); f.impostos=r2(imp); f.semCusto=r2(semCusto);
+  f.receitaLiquida=r2(f.receita-f.impostos-f.taxasCartao);
+  f.lucroBruto=r2(f.receitaLiquida-f.cmv-f.embFrete);
+  f.liquido=r2(f.lucroBruto-f.despesas);
+  f.compras=r2((db.estoqueMov||[]).filter(m=>m.tipo==='entrada'&&m.ts&&m.ts>=t0&&m.ts<=t1).reduce((s,m)=>s+(m.valor||0),0));
+  const lucroProd={}; vs.forEach(v=>(v.itens||[]).forEach(i=>{const p=db.produtos.find(x=>x.id===i.id)||{};const c=i.custo!==undefined?i.custo:(+p.custo||0);
+    if(!lucroProd[i.nome])lucroProd[i.nome]={q:0,venda:0,custo:0,temCusto:!!c};lucroProd[i.nome].q+=i.qtd;lucroProd[i.nome].venda+=i.preco*i.qtd;lucroProd[i.nome].custo+=c*i.qtd;}));
+  f.lucroProd=lucroProd;
+  return f;
+};
+const _renderFin6=renderFinanceiro;
+renderFinanceiro=function(){
+  _renderFin6();
+  const f=calcFinanceiro(finDe,finAte), R=f.receita||0;
+  const linha=(a,v,o)=>`<div class="fin-row" style="${o&&o.forte?'font-weight:800;font-size:14.5px;background:var(--surface2);margin:0 -16px;padding:9px 16px':''}"><span>${a}</span><span style="white-space:nowrap"><b class="mono" style="${o&&o.cor?'color:'+o.cor:''}">${money(v)}</b> <span style="color:var(--faint);font-size:12px;display:inline-block;min-width:52px;text-align:right">${fmtPct(pct(v,R))}</span></span></div>`;
+  const dre=`<div class="fin-box" style="margin-bottom:14px"><h4>Resultado do período (DRE) — quanto realmente sobrou</h4>
+    ${linha('Faturamento bruto (vendas + outras receitas)',f.receita,{forte:1})}
+    ${linha('(−) Impostos sobre vendas'+(finCfg().impostoPct?` (${fmtPct(+finCfg().impostoPct)})`:' — configure em Configurações'),f.impostos)}
+    ${linha('(−) Taxas de maquininha',f.taxasCartao)}
+    ${linha('= Receita líquida',f.receitaLiquida,{forte:1})}
+    ${linha('(−) Custo das mercadorias vendidas (preço de compra)',f.cmv)}
+    ${linha('(−) Embalagem e transporte',f.embFrete)}
+    ${linha('= Lucro bruto',f.lucroBruto,{forte:1,cor:f.lucroBruto<0?'var(--danger)':''})}
+    ${linha('(−) Despesas da loja (aluguel, salários, contas…)',f.despesas)}
+    ${linha('= Lucro líquido',f.liquido,{forte:1,cor:f.liquido<0?'var(--danger)':'var(--money)'})}
+    ${f.semCusto>0?`<div style="font-size:12px;color:#ffb547;margin-top:8px">⚠ ${money(f.semCusto)} vendidos em produtos sem preço de compra — cadastre o preço de compra para o lucro ficar exato.</div>`:''}
+    <div style="font-size:12px;color:var(--faint);margin-top:6px">Compras de mercadoria no período (investimento em estoque): <b class="mono">${money(f.compras)}</b> — não entra como despesa, porque o custo já é descontado quando o produto é vendido. Por isso, não lance compras de produtos com preço de compra cadastrado também como despesa.</div>
+  </div>`;
+  const k=view.querySelector('.kpis'); if(k) k.insertAdjacentHTML('afterend',dre);
+  const kp=[...view.querySelectorAll('.kpi')];
+  const set=(lbl,val,h)=>{const x=kp.find(e=>e.querySelector('.l').textContent===lbl);if(x){x.querySelector('.v').textContent=val;if(h!==undefined)x.querySelector('.h').textContent=h;}};
+  set('Custo dos produtos (CMV)',money(f.cmv),'pelo preço de compra');
+  set('Lucro bruto',money(f.lucroBruto),'margem '+fmtPct(pct(f.lucroBruto,R)));
+  set('Lucro líquido',money(f.liquido),'margem '+fmtPct(pct(f.liquido,R)));
+  const grids=view.querySelectorAll('.fin-grid'); const g2=grids[1];
+  if(g2){
+    const arr=Object.entries(f.lucroProd).map(([n,x])=>({n,...x,lucro:x.venda-x.custo})).sort((a,b)=>b.lucro-a.lucro).slice(0,12);
+    g2.insertAdjacentHTML('afterbegin',`<div class="fin-box"><h4>Lucro bruto por produto</h4>${arr.map(x=>`<div class="fin-row"><span>${esc(x.n)} <span style="color:var(--faint);font-size:12px">· ${r2(x.q)} un</span></span>
+      <span style="white-space:nowrap">${x.temCusto?`<b class="mono">${money(x.lucro)}</b> <span style="color:var(--faint);font-size:12px">${fmtPct(pct(x.lucro,x.venda))}</span>`:'<span style="color:#ffb547;font-size:12px">sem preço de compra</span>'}</span></div>`).join('')||'<div style="color:var(--faint);font-size:13px">Sem vendas no período</div>'}</div>`);
+  }
+};
+const _relFin6=imprimirRelFin;
+imprimirRelFin=function(){
+  const f=calcFinanceiro(finDe,finAte), R=f.receita||0;
+  const l=(a,v,b)=>`<tr><td>${b?'<b>'+a+'</b>':a}</td><td style="text-align:right">${b?'<b>'+money(v)+'</b>':money(v)}</td><td style="text-align:right;color:#666">${fmtPct(pct(v,R))}</td></tr>`;
+  const dre0=1;
+  const dre=`<h3 style="margin:18px 0 6px;font-size:14px">Demonstrativo de resultado</h3><table class="rp-tbl"><tbody>
+    ${l('Faturamento bruto',f.receita,1)}${l('(−) Impostos',f.impostos)}${l('(−) Taxas de maquininha',f.taxasCartao)}${l('= Receita líquida',f.receitaLiquida,1)}
+    ${l('(−) Custo das mercadorias',f.cmv)}${l('(−) Embalagem e transporte',f.embFrete)}${l('= Lucro bruto',f.lucroBruto,1)}${l('(−) Despesas da loja',f.despesas)}${l('= Lucro líquido',f.liquido,1)}
+    </tbody></table><p style="font-size:12px;color:#555">Compras de mercadoria no período: ${money(f.compras)}</p>`;
+  const dpOrig=doPrint;
+  doPrint=function(html){doPrint=dpOrig;dpOrig(html.replace('<table class="rp-tbl">',dre+'<h3 style="margin:18px 0 6px;font-size:14px">Resumo</h3><table class="rp-tbl">'));};
+  try{_relFin6();}finally{doPrint=dpOrig;}
+};
+/* Configurações: impostos e taxa prevista */
+const _renderConfig6=renderConfig;
+renderConfig=function(){
+  _renderConfig6();
+  const g=view.querySelector('.cfg-grid'); if(!g) return; const F=finCfg();
+  g.insertAdjacentHTML('afterbegin',`<div class="cfg-card">
+    <h3>📊 Impostos e custos para o lucro</h3><p>Usados no cálculo da "sobra real" de cada produto e no resultado do Financeiro. Confirme os valores com o contador.</p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:150px"><label class="fl">Imposto sobre vendas (%)</label><input class="finput mono" id="cfImp" type="number" step="0.01" value="${F.impostoPct||''}" placeholder="ex.: Simples 6"></div>
+      <div style="flex:1;min-width:150px"><label class="fl">Taxa média de cartão (%)</label><input class="finput mono" id="cfTx" type="number" step="0.01" value="${F.taxaPrevistaPct||''}" placeholder="${taxaPrevista()?'da maquininha: '+taxaPrevista():'ex.: 3'}"></div>
+    </div>
+    <button class="btn pri" onclick="db.config.fin={impostoPct:parseFloat($('#cfImp').value)||0,taxaPrevistaPct:parseFloat($('#cfTx').value)||0};store.save();toast('Salvo','good');renderConfig()">Salvar</button>
+    <p style="margin:10px 0 0;font-size:12px">A taxa média serve só para a previsão no cadastro. No Financeiro entra a taxa real de cada venda (pela maquininha usada).</p>
+  </div>`);
+};
+
 /* ============ Start ============ */
 // Auth listener handles startup — see onAuthStateChanged above
 if(MODO==='qr') iniciarQR(); else showLoading('Conectando...');
