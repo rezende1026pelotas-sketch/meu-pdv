@@ -3193,7 +3193,7 @@ function renderQR(reset){
       <div style="display:flex;justify-content:space-between;font-weight:800;font-size:18px;margin-top:4px"><span>Total</span><span class="mono">${money(tot)}</span></div>
       <p style="color:var(--faint);font-size:12px">Valores conferidos pelo caixa no fechamento da conta.</p>
     </div><div class="sticky-bar"><button class="big" ${qrCart.length&&!qrEnviando?'':'disabled'} onclick="qrEnviar()">${qrEnviando?'Enviando…':'Enviar pedido'}</button></div></div>`;
-    qrCats=[...new Set(prods.map(p=>p.categoria).filter(Boolean))].sort();
+    {const ord=qrCard.setores||[];qrCats=[...new Set(prods.map(p=>p.categoria).filter(Boolean))].sort((a,b)=>{const ia=ord.indexOf(a),ib=ord.indexOf(b);if(ia>=0&&ib>=0)return ia-ib;if(ia>=0)return -1;if(ib>=0)return 1;return a.localeCompare(b);});}
     const grupos=(qrCat?[qrCat]:[...qrCats,'']).map(c=>({c,ps:prods.filter(p=>(p.categoria||'')===c)})).filter(g=>g.ps.length);
     return `<div class="aux">${topo()}<div class="aux-body">
       <div style="display:flex;gap:8px;margin-bottom:12px"><button class="btn gho" style="flex:1" onclick="qrChamar('chamado')">🙋 Chamar garçom</button><button class="btn gho" style="flex:1" onclick="qrChamar('conta')">🧾 Pedir a conta</button></div>
@@ -4095,7 +4095,7 @@ renderAux=function(){if(auxPronto&&db.config)aplicarAparencia();_renderAux3();};
 /* cardápio do QR: leva logo e tema */
 publicarCardapio=function(forcar){
   if(MODO!=='caixa'||!currentUser) return;
-  const c={nome:db.config.nomeLoja||'',aprovacao:!!db.config.qrAprovacao,logo:db.config.logo||'',tema:db.config.tema||'escuro',
+  const c={nome:db.config.nomeLoja||'',aprovacao:!!db.config.qrAprovacao,logo:db.config.logo||'',tema:db.config.tema||'escuro',setores:(db.setores||[]).map(x=>x.nome),
     produtos:db.produtos.filter(p=>p.cardapio!==false).map(p=>({id:p.id,nome:p.nome,preco:p.preco,categoria:p.categoria||'',descricao:p.descricao||'',disp:!(p.controla&&p.estoque<=0)})),
     mesas:(db.mesas||[]).map(m=>({id:m.id,nome:m.nome}))};
   const s=JSON.stringify(c);
@@ -4195,7 +4195,8 @@ function publicarOperacao(){
     produtos:db.produtos.map(p=>({id:p.id,nome:p.nome,preco:p.preco,categoria:p.categoria||'',descricao:p.descricao||'',cozinha:p.cozinha,cardapio:p.cardapio,
       controla:p.controla,estoque:p.estoque,estoqueMin:p.estoqueMin,unidade:p.unidade||'un',codigoBarras:p.codigoBarras||''})),
     mesas:(db.mesas||[]).map(m=>({id:m.id,nome:m.nome,comanda:m.comanda||[],aberta:!!m.aberta,abertaEm:m.abertaEm||null,pessoas:m.pessoas||0,contaPedida:!!m.contaPedida})),
-    equipe:(db.equipe||[]).map(x=>({id:x.id,nome:x.nome,funcao:x.funcao,ativo:x.ativo!==false}))};
+    equipe:(db.equipe||[]).map(x=>({id:x.id,nome:x.nome,funcao:x.funcao,ativo:x.ativo!==false})),
+    setores:(db.setores||[]).map(x=>({id:x.id,nome:x.nome}))};
   const s=JSON.stringify(op); if(s===ultimaOp) return; ultimaOp=s;
   fsdb.collection('empresas').doc(currentUser.uid).collection('publico').doc('operacao').set({dados:s,atualizadoEm:Date.now()})
     .catch(e=>{ultimaOp='';console.warn('operação não publicada (regras do Firestore?)',e.code||e);});
@@ -4611,10 +4612,12 @@ gMesasHTML=function(){
 gMesaHTML=function(){
   const m=mesaObj(gMesaId); if(!m){gTela='mesas';return gMesasHTML();}
   const prodsCard=db.produtos.filter(p=>p.cardapio!==false);
-  const cats=[...new Set(prodsCard.map(p=>p.categoria||'Outros'))].sort((a,b)=>a==='Outros'?1:b==='Outros'?-1:a.localeCompare(b));
+  const ordemSet=(db.setores||[]).map(x=>x.nome);
+  const cats=[...new Set(prodsCard.map(p=>p.categoria||'Outros'))].sort((a,b)=>{const ia=ordemSet.indexOf(a),ib=ordemSet.indexOf(b);
+    if(a==='Outros')return 1;if(b==='Outros')return -1;if(ia>=0&&ib>=0)return ia-ib;if(ia>=0)return -1;if(ib>=0)return 1;return a.localeCompare(b);});
   gCats=cats;
   const q=gBusca.trim().toLowerCase();
-  const mostrarCats=!q&&!gCat&&cats.length>1;
+  const mostrarCats=!q&&!gCat&&cats.length>=1;
   const prods=prodsCard.filter(p=>(!gCat||(p.categoria||'Outros')===gCat)&&p.nome.toLowerCase().includes(q));
   const enviando=gPedidos.filter(p=>p.mesaId===m.id&&p.status==='aprovado'&&(p.tipo||'pedido')==='pedido');
   const pend=gAcoesPendentes(m.id);
@@ -4661,6 +4664,518 @@ prodExtrasHTML=function(p){
   const exist=new Set(db.produtos.map(x=>x.categoria).filter(Boolean));
   const extra=CATS_SUGERIDAS.filter(c=>!exist.has(c)).map(c=>`<option value="${c}">`).join('');
   return h.replace('</datalist>',extra+'</datalist>');
+};
+
+
+/* =====================================================================
+   RZand+ 5 — Senha do gerente, Setores do cardápio, Pagamentos
+   detalhados (bandeira, maquininha, parcelas, taxas, dividido) e
+   Reservas com refeição/período/promoção/cupom
+   ===================================================================== */
+const BANDEIRAS=[['visa','Visa','01'],['master','Mastercard','02'],['elo','Elo','06'],['hiper','Hipercard','07'],['amex','American Express','03'],['outra','Outra','99']];
+const REFEICOES=['Almoço','Janta','Fondue','Café da manhã','Evento','Outros'];
+const PERIODOS=['Manhã','Tarde','Noite'];
+const _migrate5=migrate;
+migrate=function(d){
+  d=_migrate5(d); if(!d) return d;
+  const c=d.config;
+  if(c.senhaHash===undefined) c.senhaHash='';
+  if(c.protegerFin===undefined) c.protegerFin=true;
+  if(c.protegerFech===undefined) c.protegerFech=false;
+  if(!c.pag) c.pag={pedirBandeira:true,maquininhas:[]};
+  if(!d.setores) d.setores=[];
+  if(!d.promocoes) d.promocoes=[];
+  syncSetores(d);
+  return d;
+};
+function syncSetores(d){
+  d=d||db; if(!d.setores) d.setores=[];
+  const tem=new Set(d.setores.map(x=>x.nome));
+  (d.produtos||[]).forEach(p=>{if(p.categoria&&!tem.has(p.categoria)){d.setores.push({id:uid(),nome:p.categoria});tem.add(p.categoria);}});
+}
+
+/* =====================================================================
+   1) SENHA DO GERENTE
+   ===================================================================== */
+let desbloqueadoAte=0;
+async function hashSenha(s){
+  const txt='rzand:'+(currentUser?currentUser.uid:'')+':'+s;
+  if(window.crypto&&crypto.subtle){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(txt));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
+  let h=0;for(const ch of txt)h=(h*31+ch.charCodeAt(0))|0;return 'f'+h;
+}
+function precisaSenha(v){
+  if(!db.config.senhaHash||STAFF) return false;
+  if(Date.now()<desbloqueadoAte) return false;
+  return v==='config'||(v==='financeiro'&&db.config.protegerFin)||(v==='fechamento'&&db.config.protegerFech);
+}
+function pedirSenhaGerente(cb,titulo){
+  openModal('🔒 '+(titulo||'Área do gerente'),`
+    <label class="fl">Senha do gerente</label>
+    <input class="finput mono" id="sgIn" type="password" inputmode="numeric" autocomplete="off" placeholder="Digite a senha">
+    <button style="color:var(--muted);font-size:13px;padding:4px 0" onclick="closeModal();esqueciSenhaGerente()">Esqueci a senha</button>`,()=>{
+    const v=$('#sgIn').value;
+    hashSenha(v).then(h=>{if(h===db.config.senhaHash){desbloqueadoAte=Date.now()+10*60000;closeModal();cb();}else{toast('Senha incorreta','bad');const i=$('#sgIn');if(i){i.value='';i.focus();}}});
+    return false;
+  });
+}
+function esqueciSenhaGerente(){
+  openModal('Recuperar acesso',`<p style="color:var(--muted);margin-top:0">Digite a senha da conta (a mesma do login com e-mail <b>${esc(currentUser.email)}</b>). A senha do gerente será apagada e você poderá criar outra.</p>
+    <input class="finput" id="rcPass" type="password" placeholder="Senha da conta">`,()=>{
+    const pw=$('#rcPass').value;
+    auth.signInWithEmailAndPassword(currentUser.email,pw).then(()=>{db.config.senhaHash='';store.save();desbloqueadoAte=Date.now()+10*60000;closeModal();toast('Senha do gerente apagada. Crie uma nova em Configurações.','good');go('config');})
+      .catch(()=>toast('Senha da conta incorreta','bad'));
+    return false;
+  });
+}
+const _go5=go;
+go=function(v){
+  if(precisaSenha(v)){pedirSenhaGerente(()=>_go5(v),{config:'Configurações',financeiro:'Financeiro',fechamento:'Fechamento de caixa'}[v]);return;}
+  _go5(v);
+};
+function salvarSenhaGerente(){
+  const a=$('#sgNova').value, b=$('#sgConf').value;
+  if(a.length<4){toast('A senha precisa ter pelo menos 4 dígitos','bad');return;}
+  if(a!==b){toast('As senhas não conferem','bad');return;}
+  hashSenha(a).then(h=>{db.config.senhaHash=h;desbloqueadoAte=Date.now()+10*60000;store.save();toast('Senha do gerente salva','good');renderConfig();});
+}
+function bloquearAgora(){desbloqueadoAte=0;go('home');toast('Área do gerente bloqueada');}
+
+/* =====================================================================
+   2) SETORES DO CARDÁPIO
+   ===================================================================== */
+let cadSetor='', balcSetor='';
+function setoresOrdenados(){syncSetores();return db.setores;}
+const _renderCadastro5=renderCadastro;
+renderCadastro=function(){
+  _renderCadastro5();
+  const S=setoresOrdenados(); const cont=n=>db.produtos.filter(p=>(p.categoria||'')===n).length;
+  const semSetor=db.produtos.filter(p=>!p.categoria).length;
+  const busca=view.querySelector('.list-search');
+  if(busca) busca.insertAdjacentHTML('beforebegin',`<div class="card" style="padding:12px 14px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><b style="font-size:14px">Setores do cardápio</b>
+      <span style="color:var(--faint);font-size:12.5px">Bebidas, Lanches, Pizzas, Fondues… — aparecem assim no balcão, no celular do garçom e no QR Code</span><div style="flex:1"></div>
+      <button class="btn gho" onclick="organizarSetores()">Organizar</button><button class="btn pri" onclick="novoSetor()">+ Setor</button></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="chip ${!cadSetor?'on':''}" onclick="cadSetor='';renderCadastro()">Todos</button>
+      ${S.map((x,ix)=>`<button class="chip ${cadSetor===x.nome?'on':''}" onclick="cadSetor=db.setores[${ix}].nome;renderCadastro()">${esc(x.nome)} <span style="opacity:.6">${cont(x.nome)}</span></button>`).join('')}
+      ${semSetor?`<button class="chip ${cadSetor==='__sem'?'on':''}" onclick="cadSetor='__sem';renderCadastro()">Sem setor <b>${semSetor}</b></button>`:''}
+    </div>
+    ${cadSetor&&cadSetor!=='__sem'?`<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn pri" onclick="novoProdutoNoSetor()">+ Produto em ${esc(cadSetor)}</button>
+      <button class="btn gho" onclick="renomearSetor(db.setores.find(x=>x.nome===cadSetor).id)">Renomear setor</button>
+      <button class="btn dan" onclick="excluirSetor(db.setores.find(x=>x.nome===cadSetor).id)">Excluir setor</button></div>`:''}
+  </div>`);
+  if(cadSetor){
+    view.querySelectorAll('table.tbl tbody tr').forEach(tr=>{
+      const b=tr.querySelector('.rowbtn.edit'); if(!b) return;
+      const id=(b.getAttribute('onclick').match(/editProduto\('([^']+)'\)/)||[])[1]; const p=db.produtos.find(x=>x.id===id);
+      const ok=p&&(cadSetor==='__sem'?!p.categoria:p.categoria===cadSetor); if(!ok) tr.style.display='none';
+    });
+  }
+  view.querySelectorAll('table.tbl tbody tr').forEach(tr=>{
+    const b=tr.querySelector('.rowbtn.edit'); if(!b) return;
+    const id=(b.getAttribute('onclick').match(/editProduto\('([^']+)'\)/)||[])[1]; const p=db.produtos.find(x=>x.id===id);
+    const td=tr.querySelector('td'); if(p&&td&&p.categoria) td.insertAdjacentHTML('beforeend',`<br><span class="mtag" style="background:var(--surface3);color:var(--muted);margin-top:4px">${esc(p.categoria)}</span>`);
+  });
+};
+function novoSetor(){
+  openModal('Novo setor',`<label class="fl">Nome do setor</label><input class="finput" id="stNome" list="stSug" placeholder="Ex.: Bebidas, Lanches, Pizzas, Fondues, Almoço">
+    <datalist id="stSug">${CATS_SUGERIDAS.filter(c=>!db.setores.some(x=>x.nome===c)).map(c=>`<option value="${c}">`).join('')}</datalist>`,()=>{
+    const n=$('#stNome').value.trim(); if(!n){toast('Informe o nome','bad');return false;}
+    if(db.setores.some(x=>x.nome.toLowerCase()===n.toLowerCase())){toast('Esse setor já existe','bad');return false;}
+    db.setores.push({id:uid(),nome:n}); cadSetor=n; store.save(); if(current==='cadastro')renderCadastro(); toast('Setor criado: '+n,'good');
+  });
+}
+function renomearSetor(id){
+  const s=db.setores.find(x=>x.id===id); if(!s) return;
+  openModal('Renomear setor',`<input class="finput" id="stNome" value="${esc(s.nome)}">`,()=>{
+    const n=$('#stNome').value.trim(); if(!n){toast('Informe o nome','bad');return false;}
+    db.produtos.forEach(p=>{if(p.categoria===s.nome)p.categoria=n;}); if(cadSetor===s.nome)cadSetor=n; s.nome=n;
+    store.save(); renderCadastro(); toast('Setor renomeado','good');
+  });
+}
+function excluirSetor(id){
+  const s=db.setores.find(x=>x.id===id); if(!s) return;
+  const n=db.produtos.filter(p=>p.categoria===s.nome).length;
+  confirmModal('Excluir setor '+esc(s.nome)+'?',n?`Os ${n} produto(s) dele não serão apagados — ficam em "Sem setor".`:'O setor está vazio.',()=>{
+    db.produtos.forEach(p=>{if(p.categoria===s.nome)p.categoria='';}); db.setores=db.setores.filter(x=>x.id!==id); cadSetor='';
+    store.save(); renderCadastro(); toast('Setor excluído');
+  });
+}
+function organizarSetores(){
+  const S=db.setores;
+  openModal('Organizar setores',`<p style="color:var(--muted);font-size:13px;margin-top:0">A ordem aqui é a ordem no celular do garçom, no QR Code e no balcão.</p>
+    ${S.map((x,ix)=>`<div class="acc-row"><div class="tx"><b>${esc(x.nome)}</b><span>${db.produtos.filter(p=>p.categoria===x.nome).length} produto(s)</span></div>
+      <button class="rowbtn" ${ix?'':'disabled'} onclick="moverSetor(${ix},-1)">↑</button><button class="rowbtn" ${ix<S.length-1?'':'disabled'} onclick="moverSetor(${ix},1)">↓</button>
+      <button class="rowbtn edit" onclick="closeModal();renomearSetor('${x.id}')">✎</button><button class="rowbtn del" onclick="closeModal();excluirSetor('${x.id}')">✕</button></div>`).join('')||'<div style="color:var(--faint)">Nenhum setor ainda.</div>'}
+    <button class="btn pri" style="margin-top:12px" onclick="closeModal();novoSetor()">+ Setor</button>`,null);
+}
+function moverSetor(ix,d){const S=db.setores,j=ix+d;if(j<0||j>=S.length)return;[S[ix],S[j]]=[S[j],S[ix]];store.save();organizarSetores();if(current==='cadastro')renderCadastro();}
+function novoProdutoNoSetor(){const s=cadSetor;editProduto();setTimeout(()=>{const i=$('#pCat');if(i)i.value=s;},60);}
+/* campo "Categoria" vira "Setor" com a lista de setores */
+const _prodExtrasHTML5=prodExtrasHTML;
+prodExtrasHTML=function(p){
+  let h=_prodExtrasHTML5(p);
+  h=h.replace('Categoria (cardápio)','Setor do cardápio');
+  const opts=setoresOrdenados().map(x=>`<option value="${esc(x.nome)}">`).join('');
+  return h.replace(/<datalist id="catsList">[\s\S]*?<\/datalist>/,`<datalist id="catsList">${opts}</datalist>`);
+};
+const _prodExtrasDados5=prodExtrasDados;
+prodExtrasDados=function(){const d=_prodExtrasDados5();setTimeout(()=>{syncSetores();store.save();},0);return d;};
+/* balcão: abas de setor sobre os produtos */
+refreshGrid=function(){
+  const g=$('#prodGrid'); if(!g) return;
+  const q=prodFilter.toLowerCase();
+  g.innerHTML=db.produtos.filter(p=>p.nome.toLowerCase().includes(q)&&(!balcSetor||(balcSetor==='__sem'?!p.categoria:p.categoria===balcSetor))).map(prodCardHTML).join('');
+};
+const _renderBalcao5=renderBalcao;
+renderBalcao=function(){
+  _renderBalcao5();
+  const S=setoresOrdenados().filter(x=>db.produtos.some(p=>p.categoria===x.nome));
+  const sb=view.querySelector('.searchbar');
+  if(sb&&S.length) sb.insertAdjacentHTML('afterend',`<div class="cats" style="margin:0">
+    <button class="chip ${!balcSetor?'on':''}" onclick="balcSetor='';refreshGrid();marcarAbaSetor(this)">Todos</button>
+    ${S.map((x,ix)=>`<button class="chip ${balcSetor===x.nome?'on':''}" onclick="balcSetor=${JSON.stringify(x.nome).replace(/"/g,'&quot;')};refreshGrid();marcarAbaSetor(this)">${esc(x.nome)}</button>`).join('')}</div>`);
+  if(balcSetor) refreshGrid();
+};
+function marcarAbaSetor(b){b.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));b.classList.add('on');}
+
+
+/* =====================================================================
+   3) PAGAMENTOS DETALHADOS
+   ===================================================================== */
+const _metodoLabel5=metodoLabel;
+metodoLabel=function(m){return m==='misto'?'Dividido (vários meios)':_metodoLabel5(m);};
+function maquininhas(){return (db.config.pag&&db.config.pag.maquininhas)||[];}
+function bandNome(k){const b=BANDEIRAS.find(x=>x[0]===k);return b?b[1]:'';}
+function taxaDe(maqId,metodo,parcelas){
+  const m=maquininhas().find(x=>x.id===maqId); if(!m) return 0;
+  if(metodo==='debito') return +m.debito||0;
+  if(metodo==='credito') return (parcelas>1?(+m.parcelado||+m.credito||0):(+m.credito||0));
+  if(metodo==='pix') return +m.pix||0;
+  return 0;
+}
+let cartaoAtual=null, pagtosDivididos=null, promoAplicada=null;
+function abrirCartao(metodo,total,recebido,cb){
+  const M=maquininhas(); let band='', parc=1;
+  window.__cartaoSel={band:''};
+  openModal((metodo==='credito'?'Cartão de crédito':'Cartão de débito')+' · '+money(total),`
+    <label class="fl" style="margin-top:0">Bandeira</label>
+    <div class="temas" style="grid-template-columns:repeat(3,1fr)">${BANDEIRAS.map(b=>`<button class="tema-op" data-b="${b[0]}" onclick="window.__cartaoSel.band='${b[0]}';this.parentElement.querySelectorAll('.tema-op').forEach(x=>x.classList.remove('on'));this.classList.add('on')">${b[1]}</button>`).join('')}</div>
+    ${M.length?`<label class="fl" style="margin-top:12px">Maquininha</label><select class="sel" id="cdMaq">${M.map(m=>`<option value="${m.id}">${esc(m.nome)}</option>`).join('')}</select>`:''}
+    ${metodo==='credito'?`<label class="fl">Parcelas</label><select class="sel" id="cdParc">${[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>`<option value="${n}">${n===1?'À vista':n+'x de '+money(total/n)}</option>`).join('')}</select>`:''}
+    <label class="fl">Nº de autorização / NSU (opcional, sai na nota)</label><input class="finput mono" id="cdAut" placeholder="ex.: 123456">`,()=>{
+    if(!window.__cartaoSel.band){toast('Escolha a bandeira','bad');return false;}
+    const maq=$('#cdMaq')?$('#cdMaq').value:''; const p=$('#cdParc')?parseInt($('#cdParc').value):1;
+    const info={metodo,bandeira:window.__cartaoSel.band,maquininha:maq,maqNome:(M.find(x=>x.id===maq)||{}).nome||'',parcelas:p,autorizacao:$('#cdAut').value.trim(),taxaPct:taxaDe(maq,metodo,p)};
+    setTimeout(()=>cb(info),0);
+  });
+}
+const _finalizar5=finalizarVenda;
+finalizarVenda=function(metodo,total,recebido){
+  if((metodo==='credito'||metodo==='debito')&&!cartaoAtual&&db.config.pag&&db.config.pag.pedirBandeira!==false){
+    abrirCartao(metodo,total,recebido,info=>{cartaoAtual=info;finalizarVenda(metodo,total,recebido);}); return;
+  }
+  const n=db.vendas.length, mesaId=mesaAtual, cart0=cartaoAtual, div=pagtosDivididos, promo=promoAplicada;
+  _finalizar5(metodo,total,recebido);
+  cartaoAtual=null; pagtosDivididos=null; promoAplicada=null;
+  if(db.vendas.length===n) return;
+  const v=db.vendas[0];
+  if(cart0){v.cartao=cart0;v.taxaCartao=r2(v.valor*(cart0.taxaPct||0)/100);}
+  if(metodo==='pix'){const m=maquininhas().find(x=>+x.pix>0);if(m&&db.config.pag.pixPelaMaq)v.taxaCartao=r2(v.valor*(+m.pix)/100);}
+  if(div){v.pagamentos=div;v.taxaCartao=r2(div.reduce((s,p)=>s+(p.valor*(p.taxaPct||0)/100),0));}
+  if(promo){v.promocaoId=promo.id;v.promocao=promo.nome;}
+  if(mesaId){const m=mesaObj(mesaId);if(m)m.promo=null;}
+  store.save();
+};
+/* pagamento: cupom / promoção e dividir */
+const _openPagamento5=openPagamento;
+openPagamento=function(){
+  _openPagamento5();
+  const b=$('#modal .modal-body'); if(!b) return;
+  const m=mesaAtual?mesaObj(mesaAtual):null;
+  const subtotal=cart.reduce((s,i)=>s+i.preco*i.qtd,0);
+  const taxa=(canalAtual==='entrega')?(entregaTaxa||0):0;
+  const total=subtotal*(1-descontoPct/100)+taxa;
+  let topo='';
+  if(m&&m.promo&&!promoAplicada) topo+=`<div class="alert-row" style="border-color:#bd5a95"><div class="grow">🎁 <b>${esc(m.promo.nome)}</b> · ${m.promo.modo==='%'?m.promo.valor+'%':money(m.promo.valor)} de desconto (reserva)</div><button class="btn pri" onclick="aplicarPromo('${m.promo.id}')">Aplicar</button></div>`;
+  if(promoAplicada) topo+=`<div style="text-align:center;color:#bd5a95;font-weight:700;font-size:13px;margin-bottom:8px">🎁 ${esc(promoAplicada.nome)} aplicada</div>`;
+  topo+=`<div style="display:flex;gap:8px;margin-bottom:12px"><input class="finput mono" style="margin:0" id="cupomIn" placeholder="Cupom de desconto" autocapitalize="characters"><button class="btn gho" onclick="aplicarCupom()">Aplicar</button></div>`;
+  b.insertAdjacentHTML('afterbegin',topo);
+  b.insertAdjacentHTML('beforeend',`<button class="pay-opt" style="justify-content:center;width:100%;border-style:dashed" onclick="abrirDividido(${total})">➗ Dividir pagamento (vários meios / por pessoa)</button>`);
+};
+function promoAtiva(p,dataIso){
+  if(!p||p.ativo===false) return false; const d=dataIso||isoHoje();
+  if(p.data&&p.data!==d) return false; if(p.de&&d<p.de) return false; if(p.ate&&d>p.ate) return false; return true;
+}
+function aplicarPromo(id){
+  const p=db.promocoes.find(x=>x.id===id); if(!p) return;
+  const subtotal=cart.reduce((s,i)=>s+i.preco*i.qtd,0); if(!subtotal) return;
+  descontoPct=p.modo==='%'?Math.min(100,+p.valor):Math.min(100,r2((+p.valor)/subtotal*100*1000)/1000);
+  promoAplicada={id:p.id,nome:p.nome}; closeModal(); renderBalcao(); openPagamento(); toast('🎁 '+p.nome+' aplicada','good');
+}
+function aplicarCupom(){
+  const c=String($('#cupomIn').value||'').trim().toUpperCase(); if(!c) return;
+  const p=db.promocoes.find(x=>x.cupom&&x.cupom.toUpperCase()===c);
+  if(!p){toast('Cupom não encontrado','bad');return;}
+  if(!promoAtiva(p)){toast('Cupom fora da validade','bad');return;}
+  const pess=mesaAtual?(mesaObj(mesaAtual)||{}).pessoas||0:0;
+  if(p.minPessoas&&pess&&pess<p.minPessoas){toast(`Esse cupom vale a partir de ${p.minPessoas} pessoas`,'bad');return;}
+  aplicarPromo(p.id);
+}
+let divPartes=[], divTotal=0;
+function abrirDividido(total){divTotal=r2(total);divPartes=[];renderDividido();}
+function renderDividido(){
+  const pago=r2(divPartes.reduce((s,p)=>s+p.valor,0)), falta=r2(divTotal-pago);
+  const m=mesaAtual?mesaObj(mesaAtual):null; const pess=m&&m.pessoas>1?m.pessoas:0;
+  openModal('Dividir pagamento · '+money(divTotal),`
+    ${divPartes.map((p,ix)=>`<div class="acc-row"><div class="tx"><b>${metodoLabel(p.metodo)}${p.bandeira?' · '+bandNome(p.bandeira):''}${p.parcelas>1?' · '+p.parcelas+'x':''}</b><span>${p.maqNome?esc(p.maqNome):''}</span></div><b class="mono">${money(p.valor)}</b><button class="rowbtn del" onclick="divPartes.splice(${ix},1);renderDividido()">✕</button></div>`).join('')
+      ||'<div style="color:var(--faint);font-size:13px;margin-bottom:6px">Lance cada parte: ex. R$ 50 no PIX + o resto no cartão.</div>'}
+    <div style="display:flex;justify-content:space-between;font-weight:800;font-size:18px;margin:12px 0"><span>${falta>0?'Falta':'Tudo pago'}</span><span class="mono ${falta>0?'neg':'pos'}">${money(Math.max(0,falta))}</span></div>
+    ${falta>0?`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+      <div style="flex:1;min-width:120px"><label class="fl">Valor</label><input class="finput mono" id="dvVal" type="number" step="0.01" value="${pess?Math.min(falta,r2(divTotal/pess)).toFixed(2):falta.toFixed(2)}"></div>
+      <div style="flex:1;min-width:140px"><label class="fl">Forma</label><select class="sel" id="dvMet"><option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="credito">Crédito</option><option value="debito">Débito</option></select></div></div>
+      ${pess?`<p style="color:var(--muted);font-size:12.5px;margin:0 0 8px">Mesa com ${pess} pessoas: ${money(divTotal/pess)} cada.</p>`:''}
+      <button class="btn pri" onclick="addParteDividida()">+ Lançar esta parte</button>`:''}`,null,
+    `<button class="cancel" onclick="closeModal();openPagamento()">Voltar</button><button class="ok" ${falta>0?'disabled style="opacity:.4"':''} onclick="finalizarDividido()">Finalizar venda</button>`);
+}
+function addParteDividida(){
+  const pago=r2(divPartes.reduce((s,p)=>s+p.valor,0)), falta=r2(divTotal-pago);
+  let v=r2(parseFloat($('#dvVal').value)||0); const met=$('#dvMet').value;
+  if(v<=0){toast('Informe o valor','bad');return;}
+  if(v>falta&&met!=='dinheiro'){toast('Valor maior que o que falta','bad');return;}
+  const parte={metodo:met,valor:Math.min(v,falta)};
+  if(met==='dinheiro'&&v>falta){parte.recebido=v;parte.troco=r2(v-falta);toast('Troco: '+money(v-falta),'good');}
+  if((met==='credito'||met==='debito')&&db.config.pag.pedirBandeira!==false){
+    abrirCartao(met,parte.valor,parte.valor,info=>{Object.assign(parte,info);divPartes.push(parte);renderDividido();});return;
+  }
+  divPartes.push(parte); renderDividido();
+}
+function finalizarDividido(){
+  const pago=r2(divPartes.reduce((s,p)=>s+p.valor,0)); if(pago<divTotal-0.009){toast('Ainda falta pagar','bad');return;}
+  pagtosDivididos=divPartes.slice();
+  finalizarVenda('misto',divTotal,divTotal);
+}
+/* fechamento de caixa e financeiro entendem pagamento dividido */
+function explodirVendas(lista){
+  const out=[]; lista.forEach(v=>{if(v.metodo==='misto'&&v.pagamentos)v.pagamentos.forEach(p=>out.push({...v,metodo:p.metodo,valor:p.valor,__parte:1}));else out.push(v);}); return out;
+}
+const _calcFech5=calcFechamento;
+calcFechamento=function(desde){
+  const orig=db.vendas; const ini=desde!==undefined?desde:db.config.caixaAbertoEm;
+  const nReal=orig.filter(v=>(v.ts||0)>=ini).length;
+  db.vendas=explodirVendas(orig);
+  try{const f=_calcFech5(desde);f.nVendas=nReal;f.taxasCartao=r2(orig.filter(v=>(v.ts||0)>=ini).reduce((s,v)=>s+(v.taxaCartao||0),0));return f;}finally{db.vendas=orig;}
+};
+const _calcFin5=calcFinanceiro;
+calcFinanceiro=function(de,ate){
+  const f=_calcFin5(de,ate);
+  const t0=new Date(de+'T00:00:00').getTime(), t1=new Date(ate+'T23:59:59').getTime();
+  const vs=comArquivo(()=>db.vendas.filter(v=>{if(v.cancelada)return false;const t=vendaTs(v);return t>=t0&&t<=t1;}));
+  if(f.porMet.misto){delete f.porMet.misto;vs.filter(v=>v.metodo==='misto'&&v.pagamentos).forEach(v=>v.pagamentos.forEach(p=>{f.porMet[p.metodo]=(f.porMet[p.metodo]||0)+p.valor;}));}
+  f.taxasCartao=r2(vs.reduce((s,v)=>s+(v.taxaCartao||0),0));
+  f.porBandeira={}; vs.forEach(v=>{(v.pagamentos||(v.cartao?[{...v.cartao,valor:v.valor}]:[])).forEach(p=>{if(p.bandeira){const k=bandNome(p.bandeira);f.porBandeira[k]=(f.porBandeira[k]||0)+p.valor;}});});
+  f.liquido=r2(f.liquido-f.taxasCartao);
+  f.porPromo={}; vs.forEach(v=>{if(v.promocao)f.porPromo[v.promocao]=(f.porPromo[v.promocao]||0)+v.valor;});
+  return f;
+};
+const _renderFin5=renderFinanceiro;
+renderFinanceiro=function(){
+  _renderFin5();
+  const f=calcFinanceiro(finDe,finAte);
+  const k=view.querySelectorAll('.kpi'); const liq=[...k].find(x=>x.querySelector('.l').textContent==='Lucro líquido');
+  if(liq){liq.querySelector('.h').textContent='lucro bruto − despesas − taxas de cartão';
+    liq.insertAdjacentHTML('beforebegin',`<div class="kpi"><div class="l">Taxas de cartão</div><div class="v">${money(f.taxasCartao)}</div><div class="h">pelas taxas das maquininhas</div></div>`);}
+  const grids=view.querySelectorAll('.fin-grid');
+  if(grids[0]){
+    const lista=obj=>{const arr=Object.entries(obj).sort((a,b)=>b[1]-a[1]);const mx=arr.length?arr[0][1]:0;return arr.map(([a,v])=>`<div class="fin-row" style="display:block"><div style="display:flex;justify-content:space-between"><span>${esc(a)}</span><b class="mono">${money(v)}</b></div><div class="fin-bar"><i style="width:${mx?Math.max(2,v/mx*100):0}%"></i></div></div>`).join('')||'<div style="color:var(--faint);font-size:13px">Sem dados no período</div>';};
+    grids[0].insertAdjacentHTML('beforeend',`<div class="fin-box"><h4>Cartão por bandeira</h4>${lista(f.porBandeira)}</div><div class="fin-box"><h4>Vendas com promoção</h4>${lista(f.porPromo)}</div>`);
+  }
+};
+/* comprovante detalhado */
+const _recibo5=reciboHTML;
+reciboHTML=function(v,titulo){
+  let h=_recibo5(v,titulo); const F=db.config.fiscal||{};
+  const cab=[F.razao&&esc(F.razao),F.cnpj&&('CNPJ '+esc(F.cnpj)),[F.logradouro,F.numero,F.bairro].filter(Boolean).map(esc).join(', '),F.municipio&&esc(F.municipio+'/'+(F.uf||''))].filter(Boolean);
+  if(cab.length) h=h.replace(/(<div class="rc-sub">)/,`<div style="text-align:center;font-size:11px;margin-bottom:4px">${cab.join('<br>')}</div>$1`);
+  const partes=v.pagamentos||(v.cartao?[{...v.cartao,valor:v.valor}]:null);
+  if(partes){
+    const linhas=partes.map(p=>`<tr><td>${metodoLabel(p.metodo)}${p.bandeira?' '+bandNome(p.bandeira):''}${p.parcelas>1?' '+p.parcelas+'x':''}${p.autorizacao?'<br><span style="font-size:10px">Aut. '+esc(p.autorizacao)+'</span>':''}</td><td style="text-align:right">${money(p.valor)}</td></tr>`).join('');
+    h=h.replace(/<tr><td>Pagamento<\/td><td style="text-align:right">[^<]*<\/td><\/tr>/,linhas);
+  }
+  if(v.cpf) h=h.replace('<hr>',`<div class="rc-line">CPF/CNPJ: ${esc(v.cpf)}</div><hr>`);
+  if(v.promocao) h=h.replace('<div class="rc-foot">',`<div class="rc-line" style="text-align:center">🎁 ${esc(v.promocao)}</div><div class="rc-foot">`);
+  return h;
+};
+/* NFC-e: várias formas, bandeira, autorização */
+const _montarNFCe5=montarNFCe;
+montarNFCe=function(v){
+  const r=_montarNFCe5(v);
+  const cod={dinheiro:'01',credito:'03',debito:'04',pix:'17',fiado:'05'};
+  const partes=v.pagamentos||[{metodo:v.metodo,valor:v.valor,...(v.cartao||{})}];
+  r.payload.formas_pagamento=partes.map(p=>{
+    const f={forma_pagamento:cod[p.metodo]||'99',valor_pagamento:r2(p.valor)};
+    if(p.metodo==='credito'||p.metodo==='debito'){f.tipo_integracao=2;const b=BANDEIRAS.find(x=>x[0]===p.bandeira);if(b)f.bandeira_operadora=b[2];if(p.autorizacao)f.numero_autorizacao=p.autorizacao;
+      const m=maquininhas().find(x=>x.id===p.maquininha);if(m&&soDig(m.cnpj).length===14)f.cnpj_credenciadora=soDig(m.cnpj);}
+    return f;
+  });
+  return r;
+};
+
+/* =====================================================================
+   4) RESERVAS: refeição, período, promoção, cupom, forma de pagamento
+   ===================================================================== */
+function periodoDaHora(h){const n=parseInt(String(h||'').slice(0,2));return isNaN(n)?'':n<12?'Manhã':n<18?'Tarde':'Noite';}
+const _editReserva5=editReserva;
+editReserva=function(id){
+  _editReserva5(id);
+  const r=id?db.reservas.find(x=>x.id===id):null;
+  const obs=$('#rsObs'); if(!obs) return;
+  const dataSel=r?r.data:($('#rsData')||{}).value;
+  const promos=db.promocoes.filter(p=>p.ativo!==false);
+  obs.previousElementSibling.insertAdjacentHTML('beforebegin',`
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:140px"><label class="fl">Refeição</label><select class="sel" id="rsRef"><option value="">—</option>${REFEICOES.map(x=>`<option ${r&&r.refeicao===x?'selected':''}>${x}</option>`).join('')}</select></div>
+      <div style="flex:1;min-width:120px"><label class="fl">Período</label><select class="sel" id="rsPer"><option value="">automático</option>${PERIODOS.map(x=>`<option ${r&&r.periodo===x?'selected':''}>${x}</option>`).join('')}</select></div>
+      <div style="flex:1;min-width:150px"><label class="fl">Pagamento previsto</label><select class="sel" id="rsPag"><option value="">—</option>${[['pix','PIX'],['credito','Crédito'],['debito','Débito'],['dinheiro','Dinheiro']].map(x=>`<option value="${x[0]}" ${r&&r.pagPrevisto===x[0]?'selected':''}>${x[1]}</option>`).join('')}</select></div>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div style="flex:2;min-width:180px"><label class="fl">Promoção / campanha</label><select class="sel" id="rsPromo"><option value="">Nenhuma</option>${promos.map(p=>`<option value="${p.id}" ${r&&r.promocaoId===p.id?'selected':''}>${esc(p.nome)}${p.data?' ('+brData(p.data).slice(0,5)+')':''}</option>`).join('')}</select></div>
+      <div style="flex:1;min-width:120px"><label class="fl">Cupom</label><input class="finput mono" id="rsCupom" value="${r?esc(r.cupom||''):''}" placeholder="opcional" style="text-transform:uppercase"></div>
+    </div>
+    <div id="rsDica" style="font-size:12.5px;color:#bd5a95;font-weight:700;margin:-4px 0 10px"></div>`);
+  const dica=()=>{
+    const pes=parseInt(($('#rsPes')||{}).value)||0, data=($('#rsData')||{}).value;
+    const g=db.promocoes.filter(p=>p.minPessoas&&pes>=p.minPessoas&&promoAtiva(p,data)).sort((a,b)=>b.minPessoas-a.minPessoas)[0];
+    const el=$('#rsDica'); if(el) el.textContent=g?`🎁 Com ${pes} pessoas, esta reserva ganha "${g.nome}" (${g.modo==='%'?g.valor+'%':money(g.valor)})`:'';
+  };
+  ['rsPes','rsData'].forEach(i=>{const el=$('#'+i);if(el)el.addEventListener('input',dica);}); dica();
+  const ok=modalConfirm;
+  modalConfirm=function(){
+    const extra={refeicao:$('#rsRef').value,periodo:$('#rsPer').value||periodoDaHora($('#rsHora').value),pagPrevisto:$('#rsPag').value,
+      promocaoId:$('#rsPromo').value||null,cupom:String($('#rsCupom').value||'').trim().toUpperCase()};
+    const pes=parseInt($('#rsPes').value)||0, data=$('#rsData').value;
+    if(extra.cupom&&!extra.promocaoId){const p=db.promocoes.find(x=>x.cupom&&x.cupom.toUpperCase()===extra.cupom);if(!p){toast('Cupom não encontrado','bad');return false;}extra.promocaoId=p.id;}
+    if(!extra.promocaoId){const g=db.promocoes.filter(p=>p.minPessoas&&pes>=p.minPessoas&&promoAtiva(p,data)).sort((a,b)=>b.minPessoas-a.minPessoas)[0];if(g)extra.promocaoId=g.id;}
+    const n=db.reservas.length; const res=ok(); if(res===false) return false;
+    const alvo=id?db.reservas.find(x=>x.id===id):(db.reservas.length>n?db.reservas[db.reservas.length-1]:null);
+    if(alvo){Object.assign(alvo,extra);store.save();if(current==='reservas')renderReservas();}
+    return res;
+  };
+};
+const _resCard5=resCardHTML;
+resCardHTML=function(r){
+  let h=_resCard5(r);
+  const p=r.promocaoId?db.promocoes.find(x=>x.id===r.promocaoId):null;
+  const tags=[r.refeicao,r.periodo].filter(Boolean).map(t=>`<span class="mtag" style="background:var(--surface3);color:var(--text)">${esc(t)}</span>`).join('')
+    +(p?`<span class="mtag res">🎁 ${esc(p.nome)} · ${p.modo==='%'?p.valor+'%':money(p.valor)}</span>`:'')
+    +(r.cupom?`<span class="mtag" style="background:var(--surface3);color:var(--text)">cupom ${esc(r.cupom)}</span>`:'')
+    +(r.pagPrevisto?`<span class="mtag" style="background:var(--surface3);color:var(--text)">pag.: ${esc(metodoLabel(r.pagPrevisto))}</span>`:'');
+  return tags?h.replace('<div class="acts">',`<div style="margin-top:4px">${tags}</div><div class="acts">`):h;
+};
+const _setStatusReserva5=setStatusReserva;
+setStatusReserva=function(id,st){
+  const r=db.reservas.find(x=>x.id===id);
+  if(r&&st==='chegou'&&r.mesaId&&r.promocaoId){const m=mesaObj(r.mesaId),p=db.promocoes.find(x=>x.id===r.promocaoId);if(m&&p){m.promo={id:p.id,nome:p.nome,modo:p.modo,valor:p.valor,reservaId:r.id};}}
+  _setStatusReserva5(id,st);
+};
+const _renderReservas5=renderReservas;
+renderReservas=function(){
+  _renderReservas5();
+  const sp=view.querySelector('.scr-head .spacer');
+  if(sp) sp.insertAdjacentHTML('afterend',`<button class="btn gho" onclick="abrirPromocoes()">🎁 Promoções e cupons</button>`);
+};
+const TIPOS_PROMO=[['casal','Promoção para casal'],['data','Data especial (ex.: Dia dos Namorados)'],['grupo','Desconto para grupo (mínimo de pessoas)'],['unica','Promoção única / cupom'],['outra','Outra']];
+function statsPromo(p){
+  const rs=db.reservas.filter(r=>r.promocaoId===p.id&&r.status!=='cancelada');
+  const vend=db.vendas.filter(v=>v.promocaoId===p.id&&!v.cancelada);
+  return {res:rs.length,pes:rs.reduce((s,r)=>s+(+r.pessoas||0),0),chegou:rs.filter(r=>r.status==='chegou').length,fat:vend.reduce((s,v)=>s+v.valor,0)};
+}
+function abrirPromocoes(){
+  openModal('🎁 Promoções e cupons',`
+    <p style="color:var(--muted);font-size:13px;margin-top:0">Crie a promoção da sua campanha (ex.: anúncio de Dia dos Namorados) e acompanhe quantas reservas e quanto ela trouxe.</p>
+    ${db.promocoes.map(p=>{const s=statsPromo(p);return `<div class="acc-row"><div class="tx"><b style="${p.ativo===false?'opacity:.5':''}">${esc(p.nome)} · ${p.modo==='%'?p.valor+'%':money(p.valor)}</b>
+      <span>${esc((TIPOS_PROMO.find(t=>t[0]===p.tipo)||['',''])[1])}${p.data?' · dia '+brData(p.data):p.de||p.ate?' · '+(p.de?brData(p.de):'…')+' a '+(p.ate?brData(p.ate):'…'):''}${p.minPessoas?' · a partir de '+p.minPessoas+' pessoas':''}${p.cupom?' · cupom <b>'+esc(p.cupom)+'</b>':''}<br>
+      📅 ${s.res} reserva(s) · ${s.pes} pessoas · ${s.chegou} chegaram · 💰 ${money(s.fat)} vendidos</span></div>
+      <button class="rowbtn edit" onclick="editPromocao('${p.id}')">✎</button></div>`;}).join('')||'<div style="color:var(--faint)">Nenhuma promoção ainda.</div>'}
+    <button class="btn pri" style="margin-top:12px" onclick="editPromocao()">+ Nova promoção</button>`,null);
+}
+function editPromocao(id){
+  const p=id?db.promocoes.find(x=>x.id===id):null;
+  openModal(p?'Editar promoção':'Nova promoção',`
+    <label class="fl">Nome</label><input class="finput" id="prNome" value="${p?esc(p.nome):''}" placeholder="Ex.: Dia dos Namorados — Fondue para 2">
+    <label class="fl">Tipo</label><select class="sel" id="prTipo">${TIPOS_PROMO.map(t=>`<option value="${t[0]}" ${p&&p.tipo===t[0]?'selected':''}>${t[1]}</option>`).join('')}</select>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:110px"><label class="fl">Desconto</label><input class="finput mono" id="prVal" type="number" step="0.01" value="${p?p.valor:''}" placeholder="10"></div>
+      <div style="flex:1;min-width:110px"><label class="fl">Em</label><select class="sel" id="prModo"><option value="%" ${!p||p.modo==='%'?'selected':''}>% (percentual)</option><option value="R$" ${p&&p.modo==='R$'?'selected':''}>R$ (valor)</option></select></div>
+      <div style="flex:1;min-width:120px"><label class="fl">Mínimo de pessoas</label><input class="finput mono" id="prMin" type="number" min="0" value="${p?p.minPessoas||'':''}" placeholder="ex.: 6"></div>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:140px"><label class="fl">Dia específico</label><input class="finput" id="prData" type="date" value="${p?p.data||'':''}" style="color-scheme:dark"></div>
+      <div style="flex:1;min-width:140px"><label class="fl">ou válida de</label><input class="finput" id="prDe" type="date" value="${p?p.de||'':''}" style="color-scheme:dark"></div>
+      <div style="flex:1;min-width:140px"><label class="fl">até</label><input class="finput" id="prAte" type="date" value="${p?p.ate||'':''}" style="color-scheme:dark"></div>
+    </div>
+    <label class="fl">Código do cupom (opcional — o cliente informa no caixa ou na reserva)</label><input class="finput mono" id="prCupom" value="${p?esc(p.cupom||''):''}" placeholder="Ex.: NAMORADOS15" style="text-transform:uppercase">
+    <label class="cfg-chk"><input type="checkbox" id="prAtivo" ${!p||p.ativo!==false?'checked':''}> Promoção ativa</label>`,()=>{
+    const nome=$('#prNome').value.trim(), valor=parseFloat($('#prVal').value);
+    if(!nome||!(valor>0)){toast('Informe nome e desconto','bad');return false;}
+    const cupom=$('#prCupom').value.trim().toUpperCase();
+    if(cupom&&db.promocoes.some(x=>x.id!==(p&&p.id)&&(x.cupom||'').toUpperCase()===cupom)){toast('Esse cupom já existe','bad');return false;}
+    const dados={nome,tipo:$('#prTipo').value,valor,modo:$('#prModo').value,minPessoas:parseInt($('#prMin').value)||0,data:$('#prData').value,de:$('#prDe').value,ate:$('#prAte').value,cupom,ativo:$('#prAtivo').checked};
+    if(p) Object.assign(p,dados); else db.promocoes.push({id:uid(),criadaEm:Date.now(),...dados});
+    store.save(); setTimeout(abrirPromocoes,60); toast('Promoção salva','good');
+  },p?`<button class="btn dan" onclick="delPromocao('${p.id}')">Excluir</button><div style="flex:1"></div><button class="cancel" onclick="closeModal()">Cancelar</button><button class="ok" onclick="doOk()">Salvar</button>`:undefined);
+}
+function delPromocao(id){closeModal();confirmModal('Excluir promoção?','As reservas e vendas antigas continuam registradas.',()=>{db.promocoes=db.promocoes.filter(x=>x.id!==id);store.save();setTimeout(abrirPromocoes,60);});}
+/* mesa com promoção: etiqueta */
+const _renderMesas5=renderMesas;
+renderMesas=function(){
+  _renderMesas5();
+  const cards=view.querySelectorAll('.mesa-card');
+  (db.mesas||[]).forEach((m,ix)=>{const c=cards[ix];if(c&&m.promo)c.insertAdjacentHTML('beforeend',`<div><span class="mtag res">🎁 ${esc(m.promo.nome)}</span></div>`);});
+};
+
+/* =====================================================================
+   5) CONFIGURAÇÕES: senha do gerente e maquininhas
+   ===================================================================== */
+function editMaquininha(id){
+  const M=db.config.pag.maquininhas; const m=id?M.find(x=>x.id===id):null;
+  const n=(i,l,v,ph)=>`<div style="flex:1;min-width:110px"><label class="fl">${l}</label><input class="finput mono" id="${i}" type="number" step="0.01" value="${v??''}" placeholder="${ph||'%'}"></div>`;
+  openModal(m?'Editar maquininha':'Nova maquininha',`
+    <label class="fl">Nome</label><input class="finput" id="mqNome" list="mqSug" value="${m?esc(m.nome):''}" placeholder="Ex.: Stone, Cielo, PagBank, Mercado Pago, InfinitePay">
+    <datalist id="mqSug">${['Stone','Cielo','PagBank','Mercado Pago','Getnet','Rede','SumUp','InfinitePay','Ton','Safrapay'].map(x=>`<option value="${x}">`).join('')}</datalist>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">${n('mqDeb','Taxa débito (%)',m&&m.debito)}${n('mqCred','Crédito à vista (%)',m&&m.credito)}${n('mqParc','Crédito parcelado (%)',m&&m.parcelado)}${n('mqPix','PIX na máquina (%)',m&&m.pix)}</div>
+    <label class="fl">CNPJ da credenciadora (opcional, para a NFC-e)</label><input class="finput mono" id="mqCnpj" value="${m?esc(m.cnpj||''):''}">`,()=>{
+    const nome=$('#mqNome').value.trim(); if(!nome){toast('Informe o nome','bad');return false;}
+    const d={nome,debito:parseFloat($('#mqDeb').value)||0,credito:parseFloat($('#mqCred').value)||0,parcelado:parseFloat($('#mqParc').value)||0,pix:parseFloat($('#mqPix').value)||0,cnpj:soDig($('#mqCnpj').value)};
+    if(m) Object.assign(m,d); else M.push({id:uid(),...d});
+    store.save(); renderConfig(); toast('Maquininha salva','good');
+  },m?`<button class="btn dan" onclick="db.config.pag.maquininhas=db.config.pag.maquininhas.filter(x=>x.id!=='${m.id}');store.save();closeModal();renderConfig()">Excluir</button><div style="flex:1"></div><button class="cancel" onclick="closeModal()">Cancelar</button><button class="ok" onclick="doOk()">Salvar</button>`:undefined);
+}
+const _renderConfig5=renderConfig;
+renderConfig=function(){
+  _renderConfig5();
+  const g=view.querySelector('.cfg-grid'); if(!g) return;
+  const P=db.config.pag;
+  g.insertAdjacentHTML('afterbegin',`
+  <div class="cfg-card">
+    <h3>🔒 Senha do gerente</h3><p>Pedida para abrir as Configurações${db.config.protegerFin?', o Financeiro':''}${db.config.protegerFech?' e o Fechamento de caixa':''}. Depois de digitar, fica liberado por 10 minutos.</p>
+    ${db.config.senhaHash?'<div style="font-size:13px;color:var(--money);font-weight:700;margin-bottom:8px">✓ Senha ativa</div>':'<div style="font-size:13px;color:var(--danger);font-weight:700;margin-bottom:8px">Sem senha — qualquer pessoa no caixa abre as configurações</div>'}
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <input class="finput mono" style="flex:1;min-width:120px" id="sgNova" type="password" inputmode="numeric" placeholder="${db.config.senhaHash?'Nova senha':'Criar senha'}">
+      <input class="finput mono" style="flex:1;min-width:120px" id="sgConf" type="password" inputmode="numeric" placeholder="Repetir">
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" onclick="salvarSenhaGerente()">Salvar senha</button>
+      ${db.config.senhaHash?`<button class="btn gho" onclick="bloquearAgora()">Bloquear agora</button><button class="btn dan" onclick="db.config.senhaHash='';store.save();renderConfig();toast('Senha removida')">Remover senha</button>`:''}</div>
+    <label class="sw" style="margin-top:8px"><input type="checkbox" ${db.config.protegerFin?'checked':''} onchange="db.config.protegerFin=this.checked;store.save()"><span>Pedir também para o Financeiro</span></label>
+    <label class="sw"><input type="checkbox" ${db.config.protegerFech?'checked':''} onchange="db.config.protegerFech=this.checked;store.save()"><span>Pedir também para o Fechamento de caixa</span></label>
+  </div>
+  <div class="cfg-card">
+    <h3>💳 Formas de pagamento e maquininhas</h3><p>No cartão, o caixa escolhe a bandeira (Visa, Master, Elo…), a maquininha e as parcelas. As taxas entram no Financeiro e a bandeira sai na NFC-e.</p>
+    <label class="sw"><input type="checkbox" ${P.pedirBandeira!==false?'checked':''} onchange="db.config.pag.pedirBandeira=this.checked;store.save()"><span>Perguntar bandeira e maquininha no cartão</span></label>
+    ${(P.maquininhas||[]).map(m=>`<div class="acc-row"><div class="tx"><b>${esc(m.nome)}</b><span>Débito ${m.debito}% · Crédito ${m.credito}% · Parcelado ${m.parcelado}%${m.pix?' · PIX '+m.pix+'%':''}</span></div><button class="rowbtn edit" onclick="editMaquininha('${m.id}')">✎</button></div>`).join('')}
+    <button class="btn gho" style="margin-top:8px" onclick="editMaquininha()">+ Adicionar maquininha</button>
+    <p style="margin:10px 0 0;font-size:12px">A integração automática (o valor ir sozinho para a máquina) depende da operadora — veja a explicação que mandei no chat.</p>
+  </div>`);
 };
 
 /* ============ Start ============ */
