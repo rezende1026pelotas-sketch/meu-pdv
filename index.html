@@ -484,6 +484,28 @@ body[data-tema="claro"] .key.q,body[data-tema="creme"] .key.q{background:var(--s
 
 /* corrige bloco Crédito na tela inicial (conflitava com a tela de crédito) */
 .tile.credito{display:flex;grid-template-columns:none}
+
+/* ---------- RZand+ 4: equipe e app do garçom ---------- */
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:6px}
+.cat-tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 12px;text-align:left;min-height:76px;display:flex;flex-direction:column;justify-content:space-between;gap:6px}
+.cat-tile b{font-size:15px;font-weight:800;color:var(--text)}
+.cat-tile span{font-size:12px;color:var(--muted)}
+.cat-tile:active{transform:scale(.98)}
+.g-acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:6px}
+.g-acts .btn{padding:12px 10px;font-size:13.5px}
+.pess{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r2);padding:6px 8px;justify-content:space-between}
+.pess button{width:34px;height:34px;border-radius:9px;background:var(--surface3);font-size:18px;font-weight:800;color:var(--text)}
+.pess b{font-size:14px}
+.g-item{display:flex;gap:10px;align-items:center;padding:11px 12px;border-bottom:1px solid var(--line);font-size:14px;cursor:pointer}
+.g-item:last-child{border-bottom:none}
+.g-item .ed{color:var(--faint);font-size:16px}
+.chk-row{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line);font-size:14px;cursor:pointer}
+.chk-row input{width:20px;height:20px;accent-color:var(--accent)}
+.acc-row{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line)}
+.acc-row .tx{flex:1;min-width:0}
+.acc-row .tx b{display:block;font-size:14px}
+.acc-row .tx span{font-size:12px;color:var(--muted)}
+.cod-loja{font-family:'Spline Sans Mono',monospace;font-weight:800;font-size:18px;letter-spacing:.04em;background:var(--surface2);border:1px dashed var(--line2);border-radius:10px;padding:8px 12px;display:inline-block}
 </style>
 </head>
 <body>
@@ -642,6 +664,7 @@ auth.onAuthStateChanged(async(user)=>{
   if(MODO==='qr') return;
   if(user){
     currentUser=user;
+    if(ehEmailEquipe(user.email)){ iniciarEquipe(user); return; }
     if(MODO==='garcom'||MODO==='cozinha'){ iniciarModoAuxiliar(); return; }
     showLoading('Carregando dados...');
     const dados=await store.load();
@@ -4138,6 +4161,506 @@ renderConfig=function(){
     </div>
     <button class="btn dan" style="margin-top:10px" onclick="resetTudo()">Restaurar dados de exemplo</button>
   </div>`);
+};
+
+
+/* =====================================================================
+   RZand+ 4 — Logins de funcionário (garçom / cozinha) com acesso
+   restrito, dados de operação separados e app do garçom completo
+   (categorias, kg, editar/excluir itens, pessoas, trocar mesa)
+   ===================================================================== */
+const DOMINIO_EQUIPE='equipe-rzand.com';
+let STAFF=null, LOJA_UID=null, msgLoginEquipe='';
+function lojaId(){return LOJA_UID||(currentUser&&currentUser.uid);}
+function slugUsuario(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+function ehEmailEquipe(e){return String(e||'').toLowerCase().endsWith('@'+DOMINIO_EQUIPE);}
+function emailEquipe(usuario,cod){return slugUsuario(usuario)+'.'+slugUsuario(cod)+'@'+DOMINIO_EQUIPE;}
+colPedidos=function(loja){return fsdb.collection('empresas').doc(loja||lojaId()).collection('pedidos');};
+const _migrate4=migrate;
+migrate=function(d){
+  d=_migrate4(d); if(!d) return d;
+  if(d.config.codigoLoja===undefined) d.config.codigoLoja='';
+  (d.mesas||[]).forEach(m=>{if(m.pessoas===undefined)m.pessoas=0;(m.comanda||[]).forEach(i=>{if(!i.iid)i.iid=uid();});});
+  (d.equipe||[]).forEach(x=>{if(x.acesso===undefined)x.acesso=null;});
+  return d;
+};
+
+/* ---------- 1) DADOS DE OPERAÇÃO (o que garçom e cozinha podem ver) ---------- */
+let ultimaOp='';
+function publicarOperacao(){
+  if(MODO!=='caixa'||!currentUser||STAFF) return;
+  const c=db.config;
+  const op={config:{nomeLoja:c.nomeLoja,sigla:c.sigla,logo:c.logo||'',tema:c.tema||'escuro',atrasoMin:c.atrasoMin,qrAprovacao:c.qrAprovacao,
+      rotuloVendedor:c.rotuloVendedor,pinGerente:'',modulos:{mesas:!!c.modulos.mesas,cozinha:!!c.modulos.cozinha}},
+    produtos:db.produtos.map(p=>({id:p.id,nome:p.nome,preco:p.preco,categoria:p.categoria||'',descricao:p.descricao||'',cozinha:p.cozinha,cardapio:p.cardapio,
+      controla:p.controla,estoque:p.estoque,estoqueMin:p.estoqueMin,unidade:p.unidade||'un',codigoBarras:p.codigoBarras||''})),
+    mesas:(db.mesas||[]).map(m=>({id:m.id,nome:m.nome,comanda:m.comanda||[],aberta:!!m.aberta,abertaEm:m.abertaEm||null,pessoas:m.pessoas||0,contaPedida:!!m.contaPedida})),
+    equipe:(db.equipe||[]).map(x=>({id:x.id,nome:x.nome,funcao:x.funcao,ativo:x.ativo!==false}))};
+  const s=JSON.stringify(op); if(s===ultimaOp) return; ultimaOp=s;
+  fsdb.collection('empresas').doc(currentUser.uid).collection('publico').doc('operacao').set({dados:s,atualizadoEm:Date.now()})
+    .catch(e=>{ultimaOp='';console.warn('operação não publicada (regras do Firestore?)',e.code||e);});
+}
+const _salvarAgora4=salvarAgora;
+salvarAgora=function(){_salvarAgora4();try{publicarOperacao();}catch(e){}};
+const _syncMesa4=syncMesa;
+syncMesa=function(){cart.forEach(i=>{if(!i.iid)i.iid=uid();});_syncMesa4();};
+const _aplicarPedido4=aplicarPedidoNaMesa;
+aplicarPedidoNaMesa=function(p){
+  _aplicarPedido4(p);
+  const m=(db.mesas||[]).find(x=>x.id===p.mesaId); if(!m) return;
+  const lista=(mesaAtual===m.id)?cart:(m.comanda||[]); let mudou=false;
+  lista.forEach(i=>{if(!i.iid){i.iid=uid();mudou=true;}});
+  if(mudou){if(mesaAtual===m.id)syncMesa();else store.save();}
+};
+
+/* modo garçom/cozinha lê só os dados de operação */
+iniciarModoAuxiliar=function(){
+  auxPronto=false;
+  showLoading(MODO==='garcom'?'Abrindo app do garçom…':'Abrindo estação da cozinha…');
+  const lj=lojaId(); let fallback=false;
+  const base=()=>({vendas:[],clientes:[],caixa:[],fechamentos:[],motoboys:[],estoqueMov:[],mesas:[],produtos:[],config:{}});
+  const u=fsdb.collection('empresas').doc(lj).collection('publico').doc('operacao').onSnapshot(doc=>{
+    if(doc.exists&&doc.data().dados){
+      if(fallback) return;
+      try{db=migrate({...base(),...JSON.parse(doc.data().dados)});}catch(e){console.error(e);}
+      auxPronto=true; renderAux();
+    }else if(!STAFF&&!fallback){
+      fallback=true;
+      const u2=fsdb.collection('empresas').doc(lj).onSnapshot(d2=>{
+        try{db=migrate(d2.exists&&d2.data().dados?JSON.parse(d2.data().dados):db);}catch(e){}
+        auxPronto=true; renderAux();
+      }); unsubs.push(u2);
+    }else if(STAFF){
+      auxEl().innerHTML='<div class="loading-screen" style="text-align:center;padding:24px">Aguardando o caixa…<br><span style="font-size:13px">Peça para a gerente abrir o sistema no computador do caixa uma vez.</span><br><button class="btn gho" style="margin-top:16px" onclick="auth.signOut()">Sair</button></div>';
+    }
+  },err=>{console.error(err);auxEl().innerHTML='<div class="loading-screen" style="text-align:center;padding:24px">Sem permissão para acessar.<br><span style="font-size:13px">A gerente precisa atualizar as regras do Firebase.</span><br><button class="btn gho" style="margin-top:16px" onclick="auth.signOut()">Sair</button></div>';});
+  unsubs.push(u);
+  if(MODO==='garcom') iniciarPedidosGarcom();
+  else{iniciarImpressoraCozinha();iniciarHistoricoCozinha();}
+};
+
+/* ---------- 2) LOGIN DO FUNCIONÁRIO ---------- */
+async function iniciarEquipe(user){
+  showLoading('Entrando…');
+  try{
+    const d=await fsdb.collection('equipe').doc(user.uid).get();
+    if(!d.exists) throw new Error('sem');
+    const e=d.data(); if(!e.ativo) throw new Error('inativo');
+    STAFF={...e,uid:user.uid}; LOJA_UID=e.lojaUid; MODO=e.papel==='cozinha'?'cozinha':'garcom';
+    lsSet('rz_garcom',e.nome); lsSet('rz_login_tipo','equipe');
+    iniciarModoAuxiliar();
+    const u=fsdb.collection('equipe').doc(user.uid).onSnapshot(s=>{if(!s.exists||!s.data().ativo){msgLoginEquipe='Seu acesso foi desativado pela gerente.';auth.signOut();}});
+    unsubs.push(u);
+  }catch(err){
+    msgLoginEquipe=String(err&&err.message)==='inativo'?'Seu acesso foi desativado pela gerente.':'Acesso não encontrado. Confira com a gerente.';
+    lsSet('rz_login_tipo','equipe'); auth.signOut();
+  }
+}
+const _pararListeners4=pararListeners;
+pararListeners=function(){
+  _pararListeners4();
+  if(STAFF||LOJA_UID){STAFF=null;LOJA_UID=null;MODO=['garcom','cozinha'].includes(lsGet('rz_modo'))?lsGet('rz_modo'):'caixa';}
+  document.body.classList.remove('aux-mode');
+};
+const _showLogin4=showLogin;
+showLogin=function(){
+  if(lsGet('rz_login_tipo')==='equipe'||msgLoginEquipe){showLoginEquipe();return;}
+  _showLogin4();
+  const sub=document.querySelector('.auth-box .sub');
+  if(sub) sub.insertAdjacentHTML('afterend',`<div class="canal-seg" style="margin-bottom:18px"><button class="on">Gerente / Caixa</button><button onclick="lsSet('rz_login_tipo','equipe');showLoginEquipe()">Funcionário</button></div>`);
+};
+function showLoginEquipe(){
+  document.getElementById('appContainer').style.display='none';
+  const a=document.getElementById('authContainer'); a.style.display='block';
+  a.innerHTML=`<div class="auth-screen"><div class="auth-box">
+    <div class="logo"><span class="dot" style="width:52px;height:44px;font-size:20px">RZ</span><span>RZand</span></div>
+    <div class="sub">Acesso da equipe (garçom e cozinha)</div>
+    <div class="canal-seg" style="margin-bottom:18px"><button onclick="lsSet('rz_login_tipo','caixa');msgLoginEquipe='';showLogin()">Gerente / Caixa</button><button class="on">Funcionário</button></div>
+    <div class="err" id="authErr">${esc(msgLoginEquipe||'')}</div>
+    <label class="fl">Código da loja</label><input class="finput" id="eqCod" autocapitalize="off" value="${esc(lsGet('rz_loja_cod')||'')}" placeholder="Ex.: fondueserrano">
+    <label class="fl">Usuário</label><input class="finput" id="eqUser" autocapitalize="off" value="${esc(lsGet('rz_usuario')||'')}" placeholder="Ex.: ana">
+    <label class="fl">Senha</label><input class="finput" id="eqPass" type="password" placeholder="Sua senha" onkeydown="if(event.key==='Enter')doLoginEquipe()">
+    <button class="auth-btn" onclick="doLoginEquipe()">Entrar</button>
+    <div class="switch">O código da loja, o usuário e a senha são criados pela gerente.</div>
+  </div></div>`;
+  msgLoginEquipe='';
+  setTimeout(()=>{const i=document.getElementById(lsGet('rz_usuario')?'eqPass':'eqCod');if(i)i.focus();},100);
+}
+async function doLoginEquipe(){
+  const cod=slugUsuario($('#eqCod').value), us=slugUsuario($('#eqUser').value), pw=$('#eqPass').value;
+  if(!cod||!us||!pw){authError('Preencha código da loja, usuário e senha.');return;}
+  authError(''); lsSet('rz_loja_cod',cod); lsSet('rz_usuario',us); lsSet('rz_login_tipo','equipe');
+  try{await auth.signInWithEmailAndPassword(emailEquipe(us,cod),pw);}
+  catch(e){authError(['auth/invalid-credential','auth/wrong-password','auth/user-not-found','auth/invalid-email'].includes(e.code)?'Usuário ou senha incorretos.':firebaseErrorPT(e.code));}
+}
+/* funcionário não troca de modo nem de nome */
+const _sairModoAux4=sairModoAux;
+sairModoAux=function(){
+  if(!STAFF){_sairModoAux4();return;}
+  openModal(esc(STAFF.nome),`<div style="color:var(--muted);font-size:13px;margin-bottom:8px">${STAFF.papel==='cozinha'?'Estação da cozinha':'Garçom'} · ${esc(db.config.nomeLoja||'')}</div>
+    <button class="action-row" onclick="closeModal();auth.signOut()"><span class="al" style="color:var(--danger)">Sair</span></button>`,null);
+};
+const _gTrocarNome4=gTrocarNome;
+gTrocarNome=function(cb){if(STAFF){if(typeof cb==='function')cb();return;}_gTrocarNome4(cb);};
+const _trocarModo4=trocarModoAparelho;
+trocarModoAparelho=function(n){if(STAFF){toast('Sem permissão','bad');return;}_trocarModo4(n);};
+
+/* ---------- 3) GERENTE CRIA E CONTROLA OS ACESSOS ---------- */
+function codigoLoja(){
+  if(!db.config.codigoLoja) db.config.codigoLoja=(slugUsuario(db.config.nomeLoja).slice(0,16)||'loja')+(currentUser?currentUser.uid.slice(0,3).toLowerCase().replace(/[^a-z0-9]/g,''):'');
+  return db.config.codigoLoja;
+}
+function appEquipe(){return (firebase.apps||[]).find(a=>a.name==='rzEquipe')||firebase.initializeApp(firebaseConfig,'rzEquipe');}
+function temAcessos(){return (db.equipe||[]).some(x=>x.acesso);}
+function abrirAcessos(){
+  const eq=db.equipe||[];
+  openModal('Acessos da equipe',`
+    <div style="font-size:13px;color:var(--muted);margin-bottom:6px">Código da loja (o funcionário digita no login):</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px"><span class="cod-loja">${esc(codigoLoja())}</span>
+      ${temAcessos()?'':`<button class="btn gho" onclick="editarCodigoLoja()">Alterar</button>`}</div>
+    ${eq.map(x=>{const a=x.acesso;return `<div class="acc-row"><div class="ic" style="width:34px;height:34px;border-radius:10px;background:var(--surface3);display:grid;place-items:center;font-weight:800">${esc((x.nome||'?')[0].toUpperCase())}</div>
+      <div class="tx"><b>${esc(x.nome)}</b><span>${a?`usuário <b class="mono">${esc(a.usuario)}</b> · ${a.papel==='cozinha'?'Cozinha':'Garçom'} · ${a.ativo?'<span style="color:var(--money)">ativo</span>':'<span style="color:var(--danger)">bloqueado</span>'}`:'sem acesso'}</span></div>
+      ${a?`<button class="btn gho" onclick="trocarSenhaAcesso('${x.id}')">Senha</button><button class="btn ${a.ativo?'dan':'gho'}" onclick="bloquearAcesso('${x.id}',${!a.ativo})">${a.ativo?'Bloquear':'Liberar'}</button>`
+        :`<button class="btn pri" onclick="criarAcessoPrompt('${x.id}')">Criar acesso</button>`}</div>`;}).join('')
+      ||'<div style="color:var(--faint)">Cadastre a equipe primeiro.</div>'}
+    <button class="btn gho" style="margin-top:12px" onclick="closeModal();editMembro()">+ Adicionar pessoa à equipe</button>
+    <p style="color:var(--faint);font-size:12px;margin:12px 0 0">O funcionário entra pela aba "Funcionário" na tela de login e só vê o app do garçom ou a cozinha. Financeiro, vendas, clientes e configurações ficam bloqueados.</p>`,null);
+}
+function editarCodigoLoja(){
+  openModal('Código da loja',`<input class="finput mono" id="codIn" value="${esc(codigoLoja())}" maxlength="20"><p style="color:var(--faint);font-size:12px;margin:0">Só letras e números. Não dá para mudar depois de criar acessos.</p>`,()=>{
+    const c=slugUsuario($('#codIn').value); if(c.length<3){toast('Mínimo 3 letras','bad');return false;}
+    db.config.codigoLoja=c; store.save(); setTimeout(abrirAcessos,60);
+  });
+}
+function criarAcessoPrompt(mid){
+  const x=db.equipe.find(m=>m.id===mid); if(!x) return;
+  openModal('Criar acesso · '+esc(x.nome),`
+    <label class="fl">Usuário (sem espaço)</label><input class="finput mono" id="acUser" value="${esc(slugUsuario(x.nome.split(' ')[0]))}">
+    <label class="fl">Senha (mínimo 6)</label><input class="finput mono" id="acPass" type="text" value="">
+    <label class="fl">O que essa pessoa usa</label>
+    <select class="sel" id="acPapel"><option value="garcom" ${x.funcao!=='Cozinha'?'selected':''}>App do garçom (mesas e pedidos)</option><option value="cozinha" ${x.funcao==='Cozinha'?'selected':''}>Estação da cozinha (impressão)</option></select>
+    <p style="color:var(--faint);font-size:12px;margin:0">Anote e entregue ao funcionário: código <b class="mono">${esc(codigoLoja())}</b>, usuário e senha.</p>`,()=>{
+    const us=slugUsuario($('#acUser').value), pw=$('#acPass').value, papel=$('#acPapel').value;
+    if(us.length<2){toast('Usuário muito curto','bad');return false;}
+    if(pw.length<6){toast('Senha precisa de 6 caracteres ou mais','bad');return false;}
+    criarAcessoEquipe(mid,us,pw,papel); return true;
+  });
+}
+async function criarAcessoEquipe(mid,usuario,senha,papel){
+  const x=db.equipe.find(m=>m.id===mid); if(!x) return;
+  const cod=codigoLoja(); store.save();
+  toast('Criando acesso…');
+  try{
+    const a2=appEquipe().auth();
+    const cred=await a2.createUserWithEmailAndPassword(emailEquipe(usuario,cod),senha);
+    const sid=cred.user.uid; try{await a2.signOut();}catch(e){}
+    await fsdb.collection('equipe').doc(sid).set({lojaUid:currentUser.uid,nome:x.nome,usuario,papel,ativo:true,criadoEm:Date.now()});
+    x.acesso={uid:sid,usuario,papel,ativo:true}; store.save();
+    openModal('Acesso criado ✓',`<div style="font-size:15px;line-height:1.9">Entregue para <b>${esc(x.nome)}</b>:<br>
+      Código da loja: <b class="mono">${esc(cod)}</b><br>Usuário: <b class="mono">${esc(usuario)}</b><br>Senha: <b class="mono">${esc(senha)}</b></div>
+      <p style="color:var(--faint);font-size:12.5px">No celular, abra o sistema › aba "Funcionário".</p>`,null,`<button class="cancel" style="color:var(--accent)" onclick="closeModal();abrirAcessos()">OK</button>`);
+  }catch(e){
+    console.error(e);
+    toast(e.code==='auth/email-already-in-use'?'Esse usuário já existe nesta loja. Escolha outro nome.':e.code==='auth/weak-password'?'Senha fraca (mínimo 6).':'Não foi possível criar: '+(e.code||e.message),'bad');
+  }
+}
+async function bloquearAcesso(mid,ativo){
+  const x=db.equipe.find(m=>m.id===mid); if(!x||!x.acesso) return;
+  try{await fsdb.collection('equipe').doc(x.acesso.uid).update({ativo});x.acesso.ativo=ativo;store.save();toast(ativo?'Acesso liberado':'Acesso bloqueado — saiu do sistema na hora','good');abrirAcessos();}
+  catch(e){toast('Erro: '+(e.code||e.message),'bad');}
+}
+function trocarSenhaAcesso(mid){
+  const x=db.equipe.find(m=>m.id===mid); if(!x||!x.acesso) return;
+  openModal('Trocar senha · '+esc(x.nome),`<label class="fl">Senha atual</label><input class="finput mono" id="spAt" type="text">
+    <label class="fl">Nova senha (mínimo 6)</label><input class="finput mono" id="spNova" type="text">
+    <p style="color:var(--faint);font-size:12px;margin:0">Esqueceu a senha atual? Bloqueie este acesso e crie um novo com outro usuário.</p>`,()=>{
+    const at=$('#spAt').value, nv=$('#spNova').value; if(nv.length<6){toast('Nova senha: mínimo 6','bad');return false;}
+    (async()=>{try{const a2=appEquipe().auth();const c=await a2.signInWithEmailAndPassword(emailEquipe(x.acesso.usuario,codigoLoja()),at);await c.user.updatePassword(nv);await a2.signOut();toast('Senha trocada','good');}
+      catch(e){toast(e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'?'Senha atual incorreta':'Erro: '+(e.code||e.message),'bad');}})();
+  });
+}
+const _abrirEquipe4=abrirEquipe;
+abrirEquipe=function(){
+  _abrirEquipe4();
+  const b=$('#modal .modal-body');
+  if(b) b.insertAdjacentHTML('beforeend',`<button class="btn gho" style="margin:12px 0 0 8px" onclick="closeModal();abrirAcessos()">🔑 Logins e senhas</button>`);
+};
+const _renderConfig4=renderConfig;
+renderConfig=function(){
+  _renderConfig4();
+  const cards=[...view.querySelectorAll('.cfg-card')];
+  const eqc=cards.find(c=>{const h=c.querySelector('h3');return h&&h.textContent.trim().startsWith('Equipe');});
+  if(eqc){
+    const n=(db.equipe||[]).filter(x=>x.acesso&&x.acesso.ativo).length;
+    eqc.insertAdjacentHTML('beforeend',`<div style="border-top:1px solid var(--line);margin-top:14px;padding-top:12px">
+      <div style="font-size:13px;margin-bottom:8px"><b>Login próprio para garçom e cozinha</b><br><span style="color:var(--muted)">${n} acesso(s) ativo(s) · código da loja <b class="mono">${esc(codigoLoja())}</b></span></div>
+      <button class="btn pri" onclick="abrirAcessos()">🔑 Logins e senhas da equipe</button></div>`);
+  }
+  const ap=cards.find(c=>{const h=c.querySelector('h3');return h&&h.textContent.trim()==='Este aparelho';});
+  if(ap){const p=ap.querySelector('p');if(p)p.textContent='Só para testes da gerente. Para a equipe, use "Logins e senhas da equipe": cada um entra com o próprio usuário e não vê o caixa.';}
+};
+
+/* ---------- 4) AÇÕES NA COMANDA (garçom pede, caixa aplica) ---------- */
+function mesaObj(id){return (db.mesas||[]).find(x=>x.id===id);}
+function listaMesa(id){if(mesaAtual===id)return cart;const m=mesaObj(id);if(!m)return null;if(!m.comanda)m.comanda=[];return m.comanda;}
+function fecharMesaSeVazia(m,lista){m.aberta=lista.length>0;if(m.aberta&&!m.abertaEm)m.abertaEm=Date.now();if(!m.aberta){m.abertaEm=null;m.pessoas=0;m.contaPedida=false;}}
+function salvarMesa(id){
+  const m=mesaObj(id); if(!m) return;
+  if(mesaAtual===id){syncMesa();fecharMesaSeVazia(m,cart);if(current==='balcao')renderBalcao();}
+  else fecharMesaSeVazia(m,m.comanda||[]);
+}
+function avisarCancelamentoCozinha(m,it,q,quem){
+  if(!cozinhaOn()||!ehCozinha(it.id)||q<=0) return;
+  colPedidos().add({tipo:'pedido',mesaId:m.id,mesaNome:'❌ CANCELAR · '+m.nome,itens:[{id:it.id,nome:it.nome,qtd:q,obs:'CANCELADO',preco:0}],
+    origem:quem==='caixa'?'caixa':'garcom',garcom:quem||'',status:'lancado',impresso:false,entregue:true,ts:Date.now()}).catch(()=>{});
+}
+function aplicarAcao(a){
+  let m=mesaObj(a.mesaId); if(!m) return;
+  if(a.iid&&!(listaMesa(m.id)||[]).some(i=>i.iid===a.iid)){const outra=(db.mesas||[]).find(x=>(listaMesa(x.id)||[]).some(i=>i.iid===a.iid));if(outra)m=outra;}
+  const lista=listaMesa(m.id); const quem=a.garcom||'';
+  const ix=a.iid?lista.findIndex(i=>i.iid===a.iid):-1, it=ix>=0?lista[ix]:null;
+  let msg='';
+  if(a.acao==='qtd'||a.acao==='remover'){
+    if(!it) return;
+    const novo=a.acao==='remover'?0:Math.max(0,r2(+a.qtd||0));
+    const envAntes=it.env||0, envDepois=Math.min(envAntes,novo);
+    avisarCancelamentoCozinha(m,it,r2(envAntes-envDepois),quem);
+    if(novo<=0){lista.splice(ix,1);msg=`${m.nome}: ${it.nome} excluído`;} else {it.qtd=novo;it.env=envDepois;msg=`${m.nome}: ${it.nome} → ${novo}`;}
+    salvarMesa(m.id);
+  }else if(a.acao==='obs'){
+    if(!it) return; it.obs=String(a.obs||'').slice(0,140); salvarMesa(m.id); msg=`${m.nome}: observação em ${it.nome}`;
+  }else if(a.acao==='pessoas'){
+    m.pessoas=Math.max(0,Math.min(99,a.delta!==undefined?(m.pessoas||0)+(+a.delta||0):(parseInt(a.pessoas)||0))); msg=`${m.nome}: ${m.pessoas} pessoa(s)`;
+  }else if(a.acao==='mover'){
+    const d=mesaObj(a.destinoId); if(!d||d.id===m.id) return;
+    const dest=listaMesa(d.id);
+    const todos=!a.iids||!a.iids.length;
+    const mov=todos?lista.slice():lista.filter(i=>a.iids.includes(i.iid));
+    if(!mov.length) return;
+    const ids=new Set(mov.map(i=>i.iid));
+    for(let i=lista.length-1;i>=0;i--) if(ids.has(lista[i].iid)) lista.splice(i,1);
+    dest.push(...mov.map(i=>({...i})));
+    if(todos||!lista.length){d.pessoas=(d.pessoas||0)+(m.pessoas||0);d.contaPedida=d.contaPedida||m.contaPedida;}
+    salvarMesa(m.id); salvarMesa(d.id);
+    msg=todos?`${m.nome} → ${d.nome} (mesa trocada)`:`${mov.length} item(s) de ${m.nome} → ${d.nome}`;
+  }else return;
+  store.save();
+  if(current==='mesas'&&!$('#modal').innerHTML) renderMesas();
+  if(current==='home') renderHome();
+  if(msg&&quem&&a.origem!=='caixa') toast('✏️ '+quem+' · '+msg,'good');
+  return msg;
+}
+/* fila: pedidos e ações do garçom são aplicados um por vez, na ordem em que foram feitos */
+const naFila=new Set(); let filaOp=[], processandoOp=false;
+function enfileirarOp(doc){
+  if(naFila.has(doc.id)) return; naFila.add(doc.id);
+  filaOp.push({ref:doc.ref,ts:doc.data().ts||0,tipo:doc.data().tipo||'pedido'});
+}
+async function processarFilaOp(){
+  if(processandoOp) return; processandoOp=true;
+  while(filaOp.length){
+    filaOp.sort((a,b)=>a.ts-b.ts);
+    const it=filaOp.shift();
+    try{
+      const a=await fsdb.runTransaction(async t=>{const d=await t.get(it.ref);if(!d.exists||d.data().status!=='aprovado')return null;t.update(it.ref,{status:'lancado',lancadoEm:Date.now(),lancadoPor:DEVICE_ID});return d.data();});
+      if(a){ if(it.tipo==='acao') aplicarAcao(a); else aplicarPedidoNaMesa(a); }
+    }catch(e){console.error(e);naFila.delete(it.ref.id);}
+  }
+  processandoOp=false;
+}
+iniciarPedidosCaixa=function(){
+  const u=colPedidos().where('status','in',['aguardando','aprovado','chamado']).onSnapshot(snap=>{
+    pedidosPend=[];
+    snap.forEach(doc=>{
+      const p={...doc.data(),_id:doc.id}; const tipo=p.tipo||'pedido';
+      if(p.status==='aprovado'&&(tipo==='pedido'||tipo==='acao')){enfileirarOp(doc);return;}
+      if(p.status==='aguardando'&&!db.config.qrAprovacao){doc.ref.update({status:'aprovado',aprovadoEm:Date.now()}).catch(()=>{});return;}
+      if(p.tipo==='conta') marcarContaPedida(p);
+      pedidosPend.push(p);
+      if(!pedidosVistos.has(doc.id)){pedidosVistos.add(doc.id);avisarPedido(p);}
+    });
+    processarFilaOp();
+    atualizarBadge();
+    if($('#preVendasLista')) renderPreVendasLista();
+    if(typeof checarNotificacoes==='function') checarNotificacoes();
+    if(current==='mesas'&&!$('#modal').innerHTML) renderMesas();
+  },err=>console.error('pedidos',err));
+  unsubs.push(u);
+};
+const _finalizar4=finalizarVenda;
+finalizarVenda=function(metodo,total,recebido){
+  const mesaId=mesaAtual, n=db.vendas.length;
+  _finalizar4(metodo,total,recebido);
+  if(mesaId&&db.vendas.length>n){const m=mesaObj(mesaId);if(m){db.vendas[0].pessoas=m.pessoas||0;m.pessoas=0;store.save();}}
+};
+
+/* caixa: pessoas e transferir na tela da mesa */
+const _renderBalcao4=renderBalcao;
+renderBalcao=function(){
+  _renderBalcao4();
+  if(!mesaAtual) return;
+  const m=mesaObj(mesaAtual); if(!m) return;
+  const tot=cart.reduce((s,i)=>s+i.preco*i.qtd,0);
+  const sp=view.querySelector('.scr-head .spacer');
+  if(sp) sp.insertAdjacentHTML('afterend',`<button class="btn gho" onclick="caixaPessoas()">👥 ${m.pessoas||0}${m.pessoas>1?` · ${money(tot/m.pessoas)} cada`:''}</button>${cart.length?`<button class="btn gho" onclick="abrirTransferir('${m.id}',true)">⇄ Transferir</button>`:''}`);
+};
+function caixaPessoas(){
+  const m=mesaObj(mesaAtual); if(!m) return;
+  openModal('Pessoas · '+esc(m.nome),`<label class="fl">Quantas pessoas na mesa?</label><input class="finput mono" id="pesIn" type="number" min="0" value="${m.pessoas||0}">`,()=>{
+    aplicarAcao({acao:'pessoas',mesaId:m.id,pessoas:$('#pesIn').value,origem:'caixa'}); renderBalcao();
+  });
+}
+let trSel=new Set();
+function abrirTransferir(mesaId,noCaixa){
+  const m=mesaObj(mesaId); if(!m) return;
+  if(noCaixa){cart.forEach(i=>{if(!i.iid)i.iid=uid();});syncMesa();}
+  const lista=noCaixa?cart:(m.comanda||[]); trSel=new Set();
+  const outras=(db.mesas||[]).filter(x=>x.id!==mesaId);
+  if(!outras.length){toast('Cadastre outra mesa primeiro','bad');return;}
+  openModal('Transferir · '+esc(m.nome),`
+    <label class="fl">Para qual mesa?</label>
+    <select class="sel" id="trDest">${outras.map(x=>`<option value="${x.id}">${esc(x.nome)}${(x.comanda||[]).length?' (ocupada — junta as contas)':' (livre)'}</option>`).join('')}</select>
+    <label class="fl">O que transferir?</label>
+    <label class="chk-row"><input type="radio" name="trModo" value="tudo" checked onchange="document.getElementById('trItens').style.display='none'"> <b>A mesa inteira</b> (trocar de mesa)</label>
+    <label class="chk-row"><input type="radio" name="trModo" value="itens" onchange="document.getElementById('trItens').style.display='block'"> <b>Só alguns itens</b></label>
+    <div id="trItens" style="display:none;margin-top:6px">${lista.map(i=>`<label class="chk-row"><input type="checkbox" value="${i.iid}" onchange="this.checked?trSel.add(this.value):trSel.delete(this.value)"> ${i.qtd}x ${esc(i.nome)} <span style="margin-left:auto" class="mono">${money(i.preco*i.qtd)}</span></label>`).join('')}</div>
+  `,()=>{
+    const dest=$('#trDest').value, modo=document.querySelector('input[name=trModo]:checked').value;
+    const iids=modo==='itens'?[...trSel]:null;
+    if(modo==='itens'&&!iids.length){toast('Marque os itens','bad');return false;}
+    if(noCaixa){
+      lista.forEach(i=>{if(!i.iid)i.iid=uid();}); syncMesa();
+      aplicarAcao({acao:'mover',mesaId,destinoId:dest,iids,origem:'caixa'});
+      toast('Transferido para '+mesaObj(dest).nome,'good');
+      if(!cart.length) abrirMesa(dest);
+    }else{
+      enviarAcao({acao:'mover',destinoId:dest,iids});
+      if(!iids){gMesaId=dest;gReset=true;} renderGarcom(); toast('Transferência enviada ao caixa','good');
+    }
+  });
+}
+const _renderMesas4=renderMesas;
+renderMesas=function(){
+  _renderMesas4();
+  const cards=view.querySelectorAll('.mesa-card');
+  (db.mesas||[]).forEach((m,ix)=>{const c=cards[ix];if(c&&m.pessoas>0&&(m.comanda||[]).length)c.insertAdjacentHTML('beforeend',`<div style="font-size:12px;color:var(--muted);margin-top:4px">👥 ${m.pessoas} pessoa(s)</div>`);});
+};
+
+/* ---------- 5) APP DO GARÇOM (novo) ---------- */
+function enviarAcao(obj){
+  const m=mesaObj(gMesaId); if(!m) return;
+  colPedidos().add({tipo:'acao',status:'aprovado',impresso:true,entregue:true,itens:[],mesaId:m.id,mesaNome:m.nome,garcom:gNome(),origem:'garcom',ts:Date.now(),...obj})
+    .catch(e=>{console.error(e);toast('Erro ao enviar para o caixa','bad');});
+}
+function gAcoesPendentes(mid){return gPedidos.filter(p=>p.tipo==='acao'&&p.acao!=='pessoas'&&p.status==='aprovado'&&p.mesaId===mid);}
+const UN_PESO=['kg','g','L','ml'];
+gAdd=function(id){
+  const p=db.produtos.find(x=>x.id===id); if(!p) return;
+  if(UN_PESO.includes(p.unidade)){
+    openModal(esc(p.nome),`<label class="fl">Quantidade em ${esc(p.unidade)} (${money(p.preco)} por ${esc(p.unidade)})</label>
+      <input class="finput mono" id="pesoIn" type="number" inputmode="decimal" step="0.001" min="0" placeholder="Ex.: 0,450">`,()=>{
+      const q=r2(parseFloat(String($('#pesoIn').value).replace(',','.'))*1000)/1000; if(!(q>0)){toast('Informe a quantidade','bad');return false;}
+      gCart.push({id:p.id,nome:p.nome,preco:p.preco,qtd:q,obs:''}); renderGarcom(); toast(q+' '+p.unidade+' de '+p.nome);
+    }); return;
+  }
+  const ex=gCart.find(i=>i.id===id&&!i.obs);
+  if(ex) ex.qtd++; else gCart.push({id:p.id,nome:p.nome,preco:p.preco,qtd:1,obs:''});
+  renderGarcom(); toast('+1 '+p.nome);
+};
+function gPessoasAtual(m){return Math.max(0,(m.pessoas||0)+gPedidos.filter(p=>p.tipo==='acao'&&p.acao==='pessoas'&&p.status==='aprovado'&&p.mesaId===m.id).reduce((s,p)=>s+(+p.delta||0),0));}
+function gPessoas(d){
+  const m=mesaObj(gMesaId); if(!m) return;
+  if(gPessoasAtual(m)+d<0) return;
+  enviarAcao({acao:'pessoas',delta:d}); renderGarcom();
+}
+let gEdQtd=1;
+function gItemAcoes(iid){
+  const m=mesaObj(gMesaId); const it=m&&(m.comanda||[]).find(i=>i.iid===iid); if(!it) return;
+  gEdQtd=it.qtd; const peso=UN_PESO.includes((db.produtos.find(p=>p.id===it.id)||{}).unidade);
+  openModal(esc(it.nome),`
+    <div style="color:var(--muted);font-size:13px;margin-bottom:10px">${money(it.preco)} cada · lançado${it.garcom?' por '+esc(it.garcom):''}</div>
+    <label class="fl">Quantidade</label>
+    ${peso?`<input class="finput mono" id="edQtd" type="number" step="0.001" value="${it.qtd}">`
+      :`<div class="pess" style="max-width:220px;margin-bottom:12px"><button onclick="gEdQtd=Math.max(0,gEdQtd-1);document.getElementById('edQ').textContent=gEdQtd">−</button><b id="edQ" class="mono" style="font-size:20px">${it.qtd}</b><button onclick="gEdQtd++;document.getElementById('edQ').textContent=gEdQtd">+</button></div>`}
+    <label class="fl">Observação</label><input class="finput" id="edObs" value="${esc(it.obs||'')}" placeholder="Sem cebola, bem passado…">
+    ${(it.env||0)>0&&ehCozinha(it.id)?'<p style="color:var(--faint);font-size:12px;margin:0">Se diminuir ou excluir, a cozinha recebe um aviso de CANCELAMENTO.</p>':''}`,()=>{
+    const q=peso?r2(parseFloat($('#edQtd').value)*1000)/1000:gEdQtd, obs=$('#edObs').value.trim();
+    if(q!==it.qtd) enviarAcao({acao:'qtd',iid,qtd:q});
+    if(obs!==(it.obs||'')) enviarAcao({acao:'obs',iid,obs});
+    toast('Alteração enviada ao caixa','good');
+  },`<button class="btn dan" onclick="gExcluirItem('${iid}')">Excluir item</button><div style="flex:1"></div><button class="cancel" onclick="closeModal()">Cancelar</button><button class="ok" onclick="doOk()">Salvar</button>`);
+}
+function gExcluirItem(iid){
+  const m=mesaObj(gMesaId); const it=m&&(m.comanda||[]).find(i=>i.iid===iid); if(!it) return;
+  closeModal();
+  confirmModal('Excluir '+esc(it.nome)+'?',`${it.qtd}x · ${money(it.preco*it.qtd)} sai da conta da ${esc(m.nome)}.`,()=>{enviarAcao({acao:'remover',iid});toast('Exclusão enviada ao caixa','good');});
+}
+gMesasHTML=function(){
+  const mesas=db.mesas||[];
+  return `<div class="aux">${gTopo(esc(db.config.nomeLoja||'')+' · Garçom','',`<button class="btn gho" onclick="sairModoAux()">${esc(gNome()||'Opções')} ⋯</button>`)}
+  <div class="aux-body">${gAlertasHTML()}
+    ${mesas.length?`<div class="mesa-grid">${mesas.map(m=>{
+      const oc=(m.comanda||[]).length>0; const env=gPedidos.filter(p=>p.mesaId===m.id&&p.status==='aprovado'&&(p.tipo||'pedido')==='pedido').length;
+      const min=m.abertaEm?Math.floor((Date.now()-m.abertaEm)/60000):0;
+      return `<div class="mesa-card ${oc||env?'ocup':'livre'}" onclick="gAbrirMesa('${m.id}')"><div style="font-weight:800;font-size:17px">${esc(m.nome)}</div>
+        <div style="margin-top:auto">${oc?`<div class="mono" style="font-size:19px;font-weight:800;color:#ef8f3c">${money(gTotalMesa(m))}</div><div style="font-size:12px;color:var(--muted)">há ${min} min${m.pessoas?' · 👥 '+m.pessoas:''}</div>`:`<div style="color:var(--money);font-weight:700">Livre</div>`}
+        ${m.contaPedida?'<span class="mtag conta">CONTA</span>':''}${env?'<span class="mtag qr">enviando…</span>':''}${atrasados().some(p=>p.mesaId===m.id)?'<span class="mtag atr">ATRASO</span>':''}</div></div>`;}).join('')}</div>`
+    :`<div class="ent-card" style="text-align:center;color:var(--muted)">Nenhuma mesa cadastrada ainda.</div>`}
+  </div></div>`;
+};
+gMesaHTML=function(){
+  const m=mesaObj(gMesaId); if(!m){gTela='mesas';return gMesasHTML();}
+  const prodsCard=db.produtos.filter(p=>p.cardapio!==false);
+  const cats=[...new Set(prodsCard.map(p=>p.categoria||'Outros'))].sort((a,b)=>a==='Outros'?1:b==='Outros'?-1:a.localeCompare(b));
+  gCats=cats;
+  const q=gBusca.trim().toLowerCase();
+  const mostrarCats=!q&&!gCat&&cats.length>1;
+  const prods=prodsCard.filter(p=>(!gCat||(p.categoria||'Outros')===gCat)&&p.nome.toLowerCase().includes(q));
+  const enviando=gPedidos.filter(p=>p.mesaId===m.id&&p.status==='aprovado'&&(p.tipo||'pedido')==='pedido');
+  const pend=gAcoesPendentes(m.id);
+  const nCart=r2(gCart.reduce((s,i)=>s+i.qtd,0)), totCart=gCart.reduce((s,i)=>s+i.preco*i.qtd,0);
+  const tot=gTotalMesa(m);
+  const preparo=kRecentes.filter(p=>p.mesaId===m.id&&['lancado','aprovado'].includes(p.status)&&!p.entregue&&(p.itens||[]).some(i=>ehCozinha(i.id))).sort((a,b)=>a.ts-b.ts);
+  const lim=(+db.config.atrasoMin||25);
+  const linha='display:flex;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px';
+  return `<div class="aux">${gTopo(esc(m.nome),`<button class="back" onclick="gVoltar()" style="padding:6px 12px">‹ Mesas</button>`,`<div class="mono" style="font-weight:800;color:#ef8f3c">${money(tot)}</div>`)}
+  <div class="aux-body">${gAlertasHTML()}
+    <div class="g-acts">
+      <div class="pess"><button onclick="gPessoas(-1)">−</button><b>👥 ${gPessoasAtual(m)} pessoa(s)</b><button onclick="gPessoas(1)">+</button></div>
+      <button class="btn gho" ${(m.comanda||[]).length?'':'disabled'} onclick="abrirTransferir('${m.id}',false)">⇄ Trocar mesa / transferir</button>
+      <button class="btn gho" ${m.contaPedida||!(m.comanda||[]).length?'disabled':''} onclick="gPedirConta()">🧾 ${m.contaPedida?'Conta pedida':'Pedir a conta'}</button>
+    </div>
+    ${gPessoasAtual(m)>1&&tot>0?`<div style="font-size:13px;color:var(--muted);margin:2px 2px 6px">Dividindo por ${gPessoasAtual(m)}: <b class="mono" style="color:var(--text)">${money(tot/gPessoasAtual(m))}</b> por pessoa</div>`:''}
+    ${pend.length?`<div class="alert-row" style="border-color:var(--blue)"><div class="grow">⏳ ${pend.length} alteração(ões) sendo aplicada(s) pelo caixa…</div></div>`:''}
+    ${gCart.length?`<div class="sec-t">Novo pedido · ${nCart} item(s)</div><div class="card">${gCart.map((i,ix)=>`<div style="padding:10px 12px;border-bottom:1px solid var(--line)">
+      <div style="display:flex;align-items:center;gap:10px"><div style="flex:1;font-weight:700">${esc(i.nome)}<div class="mono" style="font-size:12px;color:var(--muted);font-weight:600">${money(i.preco*i.qtd)}</div></div>
+      ${Number.isInteger(i.qtd)?`<div class="qtybox"><button onclick="gQtd(${ix},-1)">−</button><b class="mono">${i.qtd}</b><button onclick="gQtd(${ix},1)">+</button></div>`:`<b class="mono">${i.qtd}</b><button class="trash" onclick="gCart.splice(${ix},1);renderGarcom()">✕</button>`}</div>
+      <input class="finput" id="gobs${ix}" style="margin:8px 0 0;padding:9px 12px;font-size:14px" placeholder="Observação (sem cebola, bem passado…)" value="${esc(i.obs)}" oninput="gCart[${ix}].obs=this.value"></div>`).join('')}</div>`:''}
+    <div class="sec-t">Cardápio${gCat?' · '+esc(gCat):''}</div>
+    <input class="finput" id="gBuscaIn" placeholder="Buscar produto…" value="${esc(gBusca)}" oninput="gBusca=this.value;renderGarcom()">
+    ${mostrarCats?`<div class="cat-grid">${cats.map((c,ix)=>`<button class="cat-tile" onclick="gCat=gCats[${ix}];gBusca='';renderGarcom()"><b>${esc(c)}</b><span>${(n=>n+(n===1?' item':' itens'))(prodsCard.filter(p=>(p.categoria||'Outros')===c).length)}</span></button>`).join('')}</div>`
+    :`${gCat?`<button class="btn gho" style="margin-bottom:8px" onclick="gCat='';renderGarcom()">‹ Todas as categorias</button>`:''}
+      <div class="card">${prods.map(p=>{const off=p.controla&&p.estoque<=0;const n=r2(gCart.filter(i=>i.id===p.id).reduce((s,i)=>s+i.qtd,0));
+        return `<div class="g-prod ${off?'off':''}" onclick="gAdd('${p.id}')"><div class="nm">${esc(p.nome)}${n?` <span class="mtag qr" style="margin:0">${n}</span>`:''}${p.descricao?`<div class="ds">${esc(p.descricao)}</div>`:''}${off?'<div class="ds" style="color:var(--danger)">sem estoque</div>':''}</div>
+          <div class="pr mono">${money(p.preco)}${UN_PESO.includes(p.unidade)?'<span style="font-size:11px;color:var(--muted)">/'+esc(p.unidade)+'</span>':''}</div><div class="add">+</div></div>`;}).join('')||'<div style="padding:14px;color:var(--faint)">Nenhum produto</div>'}</div>`}
+    ${preparo.length?`<div class="sec-t">Em preparo na cozinha</div><div class="card">${preparo.map(p=>{const min=Math.floor((Date.now()-p.ts)/60000);
+      return `<div style="${linha};align-items:center"><div style="flex:1">${esc((p.itens||[]).filter(i=>ehCozinha(i.id)).map(i=>i.qtd+'x '+i.nome).join(', '))}
+        <div style="font-size:12px;color:${min>=lim?'#ffb547':'var(--faint)'};font-weight:700">há ${min} min${min>=lim?' · ATRASADO':''}</div></div><button class="btn gho" onclick="marcarEntregue('${p._id}')">Entregue ✓</button></div>`;}).join('')}</div>`:''}
+    <div class="sec-t">Consumo da mesa <span style="text-transform:none;font-weight:600;color:var(--faint)">· toque no item para editar</span></div>
+    <div class="card">${(m.comanda||[]).map(i=>`<div class="g-item" onclick="gItemAcoes('${i.iid}')"><div style="flex:1">${i.qtd}x ${esc(i.nome)}${i.obs?`<div style="color:var(--accent);font-size:12px">${esc(i.obs)}</div>`:''}</div><div class="mono">${money(i.preco*i.qtd)}</div><span class="ed">✎</span></div>`).join('')}
+      ${enviando.map(p=>(p.itens||[]).map(i=>`<div style="${linha};opacity:.6"><div style="flex:1">${i.qtd}x ${esc(i.nome)} <i style="font-size:11px">(lançando no caixa…)</i></div></div>`).join('')).join('')}
+      ${!(m.comanda||[]).length&&!enviando.length?'<div style="padding:14px;color:var(--faint)">Mesa sem consumo ainda</div>':''}</div>
+  </div>
+  <div class="sticky-bar"><button class="big" ${gCart.length?'':'disabled'} onclick="gEnviar()">Enviar pedido${gCart.length?` · ${nCart} item(s) · ${money(totCart)}`:''}</button></div></div>`;
+};
+/* sugestões de categoria no cadastro */
+const CATS_SUGERIDAS=['Bebidas','Lanches','Pizzas','Fondues','Pratos feitos','Buffet livre','Por quilo','Porções','Sobremesas','Sorvetes','Congelados','Variedades'];
+const _prodExtrasHTML4=prodExtrasHTML;
+prodExtrasHTML=function(p){
+  const h=_prodExtrasHTML4(p);
+  const exist=new Set(db.produtos.map(x=>x.categoria).filter(Boolean));
+  const extra=CATS_SUGERIDAS.filter(c=>!exist.has(c)).map(c=>`<option value="${c}">`).join('');
+  return h.replace('</datalist>',extra+'</datalist>');
 };
 
 /* ============ Start ============ */
