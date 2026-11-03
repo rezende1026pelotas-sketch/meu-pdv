@@ -449,6 +449,41 @@ body.aux-mode .toast{bottom:96px;max-width:92vw;text-align:center}
 .sw input:checked{background:var(--accent);border-color:var(--accent)}
 .sw input:checked::after{left:20px;background:#fff}
 @media(max-width:820px){ .res-wrap,.fin-grid{grid-template-columns:1fr} .notif-btn{padding:6px 9px} }
+
+/* ---------- RZand+ 3: aparência (logo e temas) e nuvem ---------- */
+.nuvem{font-size:12px;font-weight:700;padding:6px 10px;border-radius:20px;border:1px solid var(--line);white-space:nowrap;color:var(--muted);background:var(--surface2)}
+.nuvem.ok{color:var(--money)} .nuvem.err{color:#fff;background:var(--danger);border-color:var(--danger)}
+.brand .dot.com-logo{width:38px;height:38px;border-radius:50%;padding:0;overflow:hidden;background:var(--surface2);border:2px solid var(--line2)}
+.brand .dot.com-logo img,.sg-img{width:100%;height:100%;object-fit:cover;display:block}
+.sg-img{width:34px;height:34px;border-radius:50%;border:2px solid var(--line2);flex:0 0 auto}
+.bal-marca{position:absolute;top:22px;left:22px;display:flex;align-items:center;gap:14px;max-width:calc(100% - 80px)}
+.bal-marca img{width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.85);box-shadow:0 6px 20px rgba(0,0,0,.25);background:#fff;flex:0 0 auto}
+.bal-marca b{font-size:22px;font-weight:800;line-height:1.1;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.25)}
+.logo-prev{width:110px;height:110px;border-radius:50%;object-fit:cover;border:3px solid var(--line2);background:var(--surface2);display:grid;place-items:center;color:var(--faint);font-size:12px;text-align:center;overflow:hidden}
+.logo-prev img{width:100%;height:100%;object-fit:cover}
+.temas{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0 4px}
+.tema-op{border:2px solid var(--line);border-radius:12px;padding:8px;text-align:center;font-size:12.5px;font-weight:700;color:var(--text);background:var(--surface2)}
+.tema-op.on{border-color:var(--accent)}
+.tema-op .amo{height:38px;border-radius:8px;margin-bottom:6px;display:flex;overflow:hidden;border:1px solid rgba(0,0,0,.15)}
+.tema-op .amo i{flex:1}
+.uso-bar{height:10px;border-radius:5px;background:var(--surface3);overflow:hidden;margin:8px 0 6px}
+.uso-bar i{display:block;height:100%;border-radius:5px}
+.rc-logo{display:block;width:70px;height:70px;border-radius:50%;object-fit:cover;margin:0 auto 6px;filter:grayscale(1)}
+/* temas */
+body[data-tema="claro"]{--bg:#f3f5f8;--surface:#ffffff;--surface2:#f0f2f6;--surface3:#e3e7ee;--line:#d8dde5;--line2:#c3cad5;--text:#1a2029;--muted:#566172;--faint:#8b95a4;
+  --accent:#ea6a26;--money:#13924d;--danger:#d23b3b;--blue:#2f7fd6;--sky:#3f8fd0;--teal:#25877a;--shadow:0 8px 28px rgba(20,30,50,.14);--topbar:#ffffff;color-scheme:light}
+body[data-tema="creme"]{--bg:#f5eee1;--surface:#fffaf1;--surface2:#f2e8d6;--surface3:#e8dbc3;--line:#e0d1b6;--line2:#cfbd9d;--text:#2b2116;--muted:#6d5d48;--faint:#9a8871;
+  --accent:#d9661f;--money:#2e8a3e;--danger:#c8372f;--blue:#2f78c4;--sky:#3c86c4;--teal:#2b7f72;--shadow:0 8px 28px rgba(60,40,10,.14);--topbar:#fffaf1;color-scheme:light}
+body[data-tema="cafe"]{--bg:#241c15;--surface:#30261d;--surface2:#3a2e24;--surface3:#46382c;--line:#544336;--line2:#655141;--text:#f4eadc;--muted:#c4af96;--faint:#8f7b66;
+  --accent:#f08a3e;--money:#5fd08a;--danger:#ff6b5e;--topbar:#1b140f;color-scheme:dark}
+body[data-tema] .topbar,body[data-tema] .fbar,body[data-tema] .aux-top,body[data-tema] .sticky-bar{background:var(--topbar)}
+body[data-tema="claro"] .amber,body[data-tema="creme"] .amber,body[data-tema="claro"] .prod .st.amber,body[data-tema="creme"] .prod .st.amber{color:#a8650c}
+body[data-tema="claro"] input[type=date],body[data-tema="creme"] input[type=date],body[data-tema="claro"] input[type=time],body[data-tema="creme"] input[type=time]{color-scheme:light!important}
+body[data-tema="claro"] .overlay,body[data-tema="creme"] .overlay{background:rgba(30,25,20,.45)}
+body[data-tema="claro"] .key.q,body[data-tema="creme"] .key.q{background:var(--surface);border:1px solid var(--line)}
+
+/* corrige bloco Crédito na tela inicial (conflitava com a tela de crédito) */
+.tile.credito{display:flex;grid-template-columns:none}
 </style>
 </head>
 <body>
@@ -3810,6 +3845,298 @@ renderConfig=function(){
     <label class="sw"><input type="checkbox" ${db.config.notifEstoque!==false?'checked':''} onchange="db.config.notifEstoque=this.checked;store.save();checarNotificacoes()"><span>Avisar estoque acabando / zerado</span></label>
     <button class="btn gho" style="margin-top:6px" onclick="pedirPermissaoNotif()">${perm==='granted'?'Notificações do Windows: ativas ✓':'Ativar notificações do Windows'}</button>
     <p style="margin:8px 0 0;font-size:12px">Com elas ativas, o aviso aparece mesmo com o sistema minimizado.</p>
+  </div>`);
+};
+
+
+/* =====================================================================
+   RZand+ 3 — Proteção dos dados na nuvem (salvamento visível, arquivo
+   automático de vendas antigas, medidor de espaço, backup completo)
+   e Aparência (logo redondo + temas de cor)
+   ===================================================================== */
+const LIMITE_DOC=1048576;          // limite do Firestore por documento (1 MB)
+const DIAS_NO_CAIXA=60;            // vendas mais antigas que isso vão para o arquivo
+let saveSeq=0, nuvemEstado='ok', tamanhoDoc=0, arquivando=false;
+const _migrate3=migrate;
+migrate=function(d){
+  d=_migrate3(d); if(!d) return d;
+  const c=d.config;
+  if(c.tema===undefined) c.tema='escuro';
+  if(c.logo===undefined) c.logo='';
+  if(c.logoNoCupom===undefined) c.logoNoCupom=true;
+  if(c.ultimoBackup===undefined) c.ultimoBackup=0;
+  if(!c.arquivo) c.arquivo={qtd:0,desde:'',ate:''};
+  return d;
+};
+
+/* ---------- 1) SALVAMENTO VISÍVEL ---------- */
+function aparar(){
+  if(db.estoqueMov&&db.estoqueMov.length>1000) db.estoqueMov.length=1000;
+  if(db.fechamentos&&db.fechamentos.length>400) db.fechamentos.length=400;
+}
+store.save=function(){
+  if(!currentUser||MODO!=='caixa') return;
+  saveSeq++; setNuvem('salvando');
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(salvarAgora,800);
+};
+function salvarAgora(){
+  if(!currentUser||MODO!=='caixa') return;
+  aparar();
+  const json=JSON.stringify(db); tamanhoDoc=json.length;
+  const seq=saveSeq;
+  if(json.length>LIMITE_DOC-20000){
+    setNuvem('erro'); toast('⚠ Espaço da nuvem cheio — arquivando vendas antigas…','bad');
+    arquivarVendasAntigas(true).then(()=>{if(JSON.stringify(db).length<LIMITE_DOC-20000) salvarAgora();});
+    return;
+  }
+  fsdb.collection('empresas').doc(currentUser.uid).set({dados:json},{merge:true})
+    .then(()=>{if(seq===saveSeq)setNuvem('ok');})
+    .catch(e=>{console.error('Erro ao salvar:',e);setNuvem('erro');toast('⚠ Não foi possível salvar na nuvem. Tentando de novo…','bad');setTimeout(()=>{if(seq===saveSeq)salvarAgora();},8000);});
+  try{publicarCardapio()}catch(e){}
+  if(tamanhoDoc>LIMITE_DOC*0.6) setTimeout(()=>arquivarVendasAntigas(),3000);
+}
+function setNuvem(st){
+  nuvemEstado=st;
+  const el=$('#nuvem'); if(!el) return;
+  const off=!navigator.onLine;
+  if(st==='ok'){el.className='nuvem ok';el.textContent='☁ Salvo';el.title='Todos os dados estão salvos na nuvem';}
+  else if(st==='erro'){el.className='nuvem err';el.textContent='⚠ Não salvo';el.title='Não foi possível salvar. Verifique a internet.';}
+  else{el.className='nuvem';el.textContent=off?'⏳ Sem internet':'⏳ Salvando…';el.title=off?'Sem internet: vai salvar quando a conexão voltar. Não feche o sistema.':'Salvando na nuvem';}
+}
+window.addEventListener('online',()=>{if(nuvemEstado!=='ok')salvarAgora();});
+window.addEventListener('offline',()=>setNuvem('salvando'));
+window.addEventListener('beforeunload',e=>{if(MODO==='caixa'&&currentUser&&nuvemEstado!=='ok'){e.preventDefault();e.returnValue='Há dados ainda não salvos na nuvem.';return e.returnValue;}});
+
+/* ---------- 2) ARQUIVO AUTOMÁTICO DE VENDAS ANTIGAS ---------- */
+function colArquivo(){return fsdb.collection('empresas').doc(currentUser.uid).collection('arquivo');}
+function chaveVenda(v){return String(v.codigo||'x')+'_'+String(v.numero||0);}
+async function arquivarVendasAntigas(forcar){
+  if(arquivando||MODO!=='caixa'||!currentUser) return 0;
+  const limite=Math.min(Date.now()-(forcar?20:DIAS_NO_CAIXA)*864e5,db.config.caixaAbertoEm||Date.now());
+  const velhas=db.vendas.filter(v=>vendaTs(v)<limite);
+  if(!velhas.length) return 0;
+  arquivando=true;
+  const porDia={};
+  velhas.forEach(v=>{const t=vendaTs(v);const dia=t?isoData(new Date(t)):'0000-00-00';(porDia[dia]=porDia[dia]||{})[chaveVenda(v)]=JSON.stringify(v);});
+  const dias=Object.keys(porDia).sort();
+  try{
+    for(const dia of dias) await colArquivo().doc(dia).set({dia,vendas:porDia[dia],atualizadoEm:Date.now()},{merge:true});
+    const sai=new Set(velhas.map(chaveVenda));
+    db.vendas=db.vendas.filter(v=>!sai.has(chaveVenda(v)));
+    const A=db.config.arquivo;
+    A.qtd=(A.qtd||0)+velhas.length;
+    if(!A.desde||dias[0]<A.desde) A.desde=dias[0];
+    if(!A.ate||dias[dias.length-1]>A.ate) A.ate=dias[dias.length-1];
+    store.save();
+    console.log('Arquivadas',velhas.length,'vendas em',dias.length,'dia(s)');
+    if(current==='vendas') renderVendas();
+    return velhas.length;
+  }catch(e){
+    console.error('Arquivo:',e);
+    if(forcar) toast('⚠ Não consegui arquivar. Atualize as regras do Firebase (arquivo).','bad');
+    return 0;
+  }finally{arquivando=false;}
+}
+const arqVendas={}; const arqCarregado=new Set();
+async function carregarArquivo(de,ate){
+  const A=db.config.arquivo||{};
+  if(!A.ate||!currentUser||de>A.ate) return 0;
+  const k=de+'|'+ate; if(arqCarregado.has(k)) return 0;
+  try{
+    const s=await colArquivo().where('dia','>=',de).where('dia','<=',ate).get();
+    let n=0; s.forEach(d=>{const vs=d.data().vendas||{};Object.keys(vs).forEach(c=>{if(!arqVendas[c]){try{arqVendas[c]=JSON.parse(vs[c]);n++;}catch(e){}}});});
+    arqCarregado.add(k); return n;
+  }catch(e){console.error('Ler arquivo:',e);return 0;}
+}
+function comArquivo(fn){
+  const orig=db.vendas; const locais=new Set(orig.map(chaveVenda));
+  db.vendas=orig.concat(Object.keys(arqVendas).filter(c=>!locais.has(c)).map(c=>arqVendas[c]));
+  try{return fn();}finally{db.vendas=orig;}
+}
+const _calcFin3=calcFinanceiro;
+calcFinanceiro=function(de,ate){return comArquivo(()=>_calcFin3(de,ate));};
+const _renderFin3=renderFinanceiro;
+renderFinanceiro=function(){
+  _renderFin3();
+  const A=db.config.arquivo||{};
+  if(A.ate&&finDe<=A.ate&&!arqCarregado.has(finDe+'|'+finAte)){
+    const h=view.querySelector('.scr-title'); if(h) h.insertAdjacentHTML('beforeend',' <span style="font-size:12px;color:var(--muted);font-weight:600">· buscando vendas antigas…</span>');
+    carregarArquivo(finDe,finAte).then(()=>{if(current==='financeiro')_renderFin3();});
+  }
+};
+const _gerarRelVendas3=gerarRelatorioVendas;
+gerarRelatorioVendas=function(de,ate,cliSel){
+  const A=db.config.arquivo||{};
+  const d1=de||A.desde||'2000-01-01', d2=ate||isoHoje();
+  if(A.ate&&d1<=A.ate){toast('Buscando vendas antigas no arquivo…');carregarArquivo(d1,d2).then(()=>comArquivo(()=>_gerarRelVendas3(de,ate,cliSel)));}
+  else _gerarRelVendas3(de,ate,cliSel);
+};
+const _renderVendas3=renderVendas;
+renderVendas=function(){
+  _renderVendas3();
+  const A=db.config.arquivo||{};
+  if(A.qtd) view.insertAdjacentHTML('beforeend',`<p style="color:var(--faint);font-size:12.5px;text-align:center;margin:14px 0">Aqui ficam as vendas dos últimos ${DIAS_NO_CAIXA} dias. ${A.qtd} venda(s) mais antigas estão guardadas no arquivo da nuvem (${brData(A.desde)} a ${brData(A.ate)}) e entram no Financeiro e no Relatório de vendas.</p>`);
+};
+
+/* ---------- 3) BACKUP COMPLETO + LEMBRETE ---------- */
+exportJSON=async function(){
+  toast('Preparando backup completo…');
+  let arquivo=[];
+  try{const s=await colArquivo().get();s.forEach(d=>arquivo.push(d.data()));}catch(e){}
+  const pacote={...db,__arquivo:arquivo,__backupEm:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(pacote)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='backup-'+(db.config.nomeLoja||'pdv').replace(/[^\w]+/g,'-').toLowerCase()+'-'+hoje().replace(/\//g,'-')+'.json';a.click();
+  db.config.ultimoBackup=Date.now(); store.save();
+  toast('Backup salvo no computador ('+(db.vendas.length+arquivo.reduce((s,d)=>s+Object.keys(d.vendas||{}).length,0))+' vendas)','good');
+};
+importJSON=function(inp){
+  const f=inp.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=async()=>{
+    try{
+      const d=JSON.parse(r.result); if(!d.produtos||!d.clientes) throw 0;
+      const arq=d.__arquivo||[]; delete d.__arquivo; delete d.__backupEm;
+      for(const doc of arq){if(doc&&doc.dia) await colArquivo().doc(doc.dia).set(doc,{merge:true});}
+      db=migrate(d); store.save(); toast('Backup restaurado'+(arq.length?' (com arquivo)':''),'good'); go('home');
+    }catch(e){toast('Arquivo de backup inválido','bad');}
+  };
+  r.readAsText(f);
+};
+const _calcNotif3=calcNotificacoes;
+calcNotificacoes=function(){
+  const n=_calcNotif3();
+  const dias=db.config.ultimoBackup?Math.floor((Date.now()-db.config.ultimoBackup)/864e5):null;
+  if(db.vendas.length&&(dias===null||dias>=7))
+    n.push({id:'bk',nivel:'info',ic:'💾',tit:dias===null?'Faça o primeiro backup dos dados':`Último backup há ${dias} dias`,txt:'Uma cópia no computador, além da nuvem',acao:`closeModal();exportJSON()`,acaoTxt:'Fazer backup'});
+  if(tamanhoDoc>LIMITE_DOC*0.75)
+    n.push({id:'esp',nivel:'aviso',ic:'☁',tit:'Espaço da nuvem em '+Math.round(tamanhoDoc/LIMITE_DOC*100)+'%',txt:'Arquive vendas antigas em Configurações › Dados',acao:`closeModal();go('config')`,acaoTxt:'Ver'});
+  return n;
+};
+
+/* ---------- 4) APARÊNCIA: LOGO + TEMAS ---------- */
+const TEMAS=[['escuro','Escuro',['#0f1318','#171d24','#ff7a3d']],['claro','Claro',['#f3f5f8','#ffffff','#ea6a26']],
+  ['creme','Creme',['#f5eee1','#fffaf1','#d9661f']],['cafe','Bege escuro',['#241c15','#30261d','#f08a3e']]];
+function aplicarAparencia(tema,logo){
+  tema=tema||(db.config&&db.config.tema)||'escuro';
+  logo=logo!==undefined?logo:(db.config&&db.config.logo);
+  if(tema==='escuro') delete document.body.dataset.tema; else document.body.dataset.tema=tema;
+  const mt=document.querySelector('meta[name=theme-color]'); if(mt) mt.content={escuro:'#0f1318',claro:'#ffffff',creme:'#fffaf1',cafe:'#1b140f'}[tema]||'#0f1318';
+  const bd=document.getElementById('brandDot');
+  if(bd){ if(logo){bd.classList.add('com-logo');bd.innerHTML=`<img src="${logo}" alt="">`;} else {bd.classList.remove('com-logo');bd.textContent=db.config.sigla||'RZ';} }
+}
+function setTema(t){db.config.tema=t;store.save();aplicarAparencia();if(current==='config')renderConfig();toast('Tema: '+TEMAS.find(x=>x[0]===t)[1],'good');}
+function escolherLogo(inp){
+  const f=inp.files&&inp.files[0]; if(!f) return;
+  if(!/^image\//.test(f.type)){toast('Escolha uma imagem (JPG ou PNG)','bad');return;}
+  const r=new FileReader();
+  r.onload=()=>{
+    const img=new Image();
+    img.onload=()=>{
+      const S=256,cv=document.createElement('canvas');cv.width=S;cv.height=S;
+      const cx=cv.getContext('2d'); const lado=Math.min(img.width,img.height);
+      cx.drawImage(img,(img.width-lado)/2,(img.height-lado)/2,lado,lado,0,0,S,S);
+      let url=cv.toDataURL('image/webp',0.86);
+      if(!url.startsWith('data:image/webp')) url=cv.toDataURL('image/png');
+      if(url.length>160000) url=cv.toDataURL('image/jpeg',0.82);
+      db.config.logo=url; store.save(); aplicarAparencia(); if(current==='config')renderConfig(); toast('Logo salvo','good');
+    };
+    img.onerror=()=>toast('Não consegui abrir essa imagem','bad');
+    img.src=r.result;
+  };
+  r.readAsDataURL(f);
+}
+function removerLogo(){db.config.logo='';store.save();aplicarAparencia();renderConfig();toast('Logo removido');}
+/* logo no Balcão da tela inicial */
+const _renderHome3=renderHome;
+renderHome=function(){
+  _renderHome3();
+  const t=view.querySelector('.tile.balcao');
+  if(t&&db.config.logo) t.insertAdjacentHTML('afterbegin',`<div class="bal-marca"><img src="${db.config.logo}" alt=""><b>${esc(db.config.nomeLoja)}</b></div>`);
+};
+/* sigla salva também atualiza o logo */
+const _salvarMarca3=salvarMarca;
+salvarMarca=function(){_salvarMarca3();aplicarAparencia();};
+/* logo no cupom */
+const _reciboHTML3=reciboHTML;
+reciboHTML=function(v,titulo){
+  const h=_reciboHTML3(v,titulo);
+  return (db.config.logo&&db.config.logoNoCupom)?h.replace('<div class="receipt">',`<div class="receipt"><img class="rc-logo" src="${db.config.logo}" alt="">`):h;
+};
+/* garçom / cozinha: logo no topo e tema */
+const _gTopo3=gTopo;
+gTopo=function(t,esq,dir){if(!esq&&db.config.logo) esq=`<img class="sg-img" src="${db.config.logo}" alt="">`;return _gTopo3(t,esq,dir);};
+const _renderAux3=renderAux;
+renderAux=function(){if(auxPronto&&db.config)aplicarAparencia();_renderAux3();};
+/* cardápio do QR: leva logo e tema */
+publicarCardapio=function(forcar){
+  if(MODO!=='caixa'||!currentUser) return;
+  const c={nome:db.config.nomeLoja||'',aprovacao:!!db.config.qrAprovacao,logo:db.config.logo||'',tema:db.config.tema||'escuro',
+    produtos:db.produtos.filter(p=>p.cardapio!==false).map(p=>({id:p.id,nome:p.nome,preco:p.preco,categoria:p.categoria||'',descricao:p.descricao||'',disp:!(p.controla&&p.estoque<=0)})),
+    mesas:(db.mesas||[]).map(m=>({id:m.id,nome:m.nome}))};
+  const s=JSON.stringify(c);
+  if(!forcar&&s===ultimoCardapio) return;
+  ultimoCardapio=s;
+  fsdb.collection('cardapios').doc(currentUser.uid).set({...c,atualizadoEm:Date.now()})
+    .catch(e=>console.warn('Cardápio QR não publicado:',e.code||e));
+};
+const _renderQR3=renderQR;
+renderQR=function(reset){
+  if(qrCard){
+    const t=qrCard.tema||'escuro'; if(t==='escuro')delete document.body.dataset.tema; else document.body.dataset.tema=t;
+  }
+  _renderQR3(reset);
+  const top=document.querySelector('#authContainer .aux-top');
+  if(top&&qrCard&&qrCard.logo&&!top.querySelector('.sg-img')) top.insertAdjacentHTML('afterbegin',`<img class="sg-img" src="${qrCard.logo}" alt="">`);
+};
+
+/* ---------- 5) ARRANQUE E CONFIGURAÇÕES ---------- */
+const _iniciarCaixaExtras3=iniciarCaixaExtras;
+iniciarCaixaExtras=function(){
+  _iniciarCaixaExtras3();
+  if(!$('#nuvem')){const ui=$('#userInfo');if(ui)ui.insertAdjacentHTML('beforebegin','<span id="nuvem" class="nuvem ok">☁ Salvo</span>');}
+  tamanhoDoc=JSON.stringify(db).length; setNuvem('ok');
+  aplicarAparencia();
+  setTimeout(()=>arquivarVendasAntigas(),5000);
+};
+const _renderConfig3=renderConfig;
+renderConfig=function(){
+  _renderConfig3();
+  const g=view.querySelector('.cfg-grid'); if(!g) return;
+  tamanhoDoc=JSON.stringify(db).length;
+  const pct=Math.min(100,tamanhoDoc/LIMITE_DOC*100), cor=pct>75?'var(--danger)':pct>50?'#ffb547':'var(--money)';
+  const A=db.config.arquivo||{};
+  const bk=db.config.ultimoBackup?new Date(db.config.ultimoBackup).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'nunca';
+  g.querySelectorAll('.cfg-card').forEach(c=>{const h=c.querySelector('h3');if(h&&h.textContent.trim()==='Backup dos dados')c.remove();});
+  g.insertAdjacentHTML('afterbegin',`
+  <div class="cfg-card">
+    <h3>Aparência</h3><p>Logo da empresa (aparece redondo no topo, na tela inicial, no cupom, no celular do garçom e no cardápio do QR) e cores do sistema.</p>
+    <div style="display:flex;gap:16px;align-items:center;margin-bottom:12px">
+      <div class="logo-prev">${db.config.logo?`<img src="${db.config.logo}" alt="">`:'sem logo'}</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn pri" onclick="document.getElementById('logoFile').click()">${db.config.logo?'Trocar logo':'Enviar logo'}</button>
+        ${db.config.logo?'<button class="btn dan" onclick="removerLogo()">Remover logo</button>':''}
+        <input type="file" id="logoFile" accept="image/*" style="display:none" onchange="escolherLogo(this)">
+      </div>
+    </div>
+    <label class="sw"><input type="checkbox" ${db.config.logoNoCupom?'checked':''} onchange="db.config.logoNoCupom=this.checked;store.save()"><span>Imprimir o logo no comprovante</span></label>
+    <label class="fl" style="margin-top:10px">Cores do sistema</label>
+    <div class="temas">${TEMAS.map(t=>`<button class="tema-op ${(db.config.tema||'escuro')===t[0]?'on':''}" onclick="setTema('${t[0]}')"><div class="amo">${t[2].map(c=>`<i style="background:${c}"></i>`).join('')}</div>${t[1]}</button>`).join('')}</div>
+  </div>
+  <div class="cfg-card">
+    <h3>Dados e segurança</h3><p>Tudo fica salvo na nuvem do Google (Firebase, São Paulo). O indicador ☁ no topo mostra se está tudo salvo.</p>
+    <div style="font-size:13px">Espaço usado na nuvem: <b>${pct.toFixed(0)}%</b> <span style="color:var(--faint)">(${(tamanhoDoc/1024).toFixed(0)} KB de 1.024 KB)</span></div>
+    <div class="uso-bar"><i style="width:${Math.max(2,pct)}%;background:${cor}"></i></div>
+    <div style="font-size:12.5px;color:var(--muted);line-height:1.6">${db.vendas.length} venda(s) no caixa · ${A.qtd||0} no arquivo${A.qtd?` (${brData(A.desde)} a ${brData(A.ate)})`:''}<br>
+      Vendas com mais de ${DIAS_NO_CAIXA} dias vão sozinhas para o arquivo, sem limite de espaço.<br>Último backup no computador: <b>${bk}</b></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      <button class="btn pri" onclick="exportJSON()">Baixar backup completo</button>
+      <button class="btn gho" onclick="document.getElementById('impFile3').click()">Restaurar backup</button>
+      <button class="btn gho" onclick="arquivarVendasAntigas(true).then(n=>{toast(n?n+' venda(s) arquivadas':'Nada para arquivar agora','good');renderConfig();})">Arquivar agora</button>
+      <input type="file" id="impFile3" accept="application/json" style="display:none" onchange="importJSON(this)">
+    </div>
+    <button class="btn dan" style="margin-top:10px" onclick="resetTudo()">Restaurar dados de exemplo</button>
   </div>`);
 };
 
