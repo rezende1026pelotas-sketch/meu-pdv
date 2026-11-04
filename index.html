@@ -5777,6 +5777,96 @@ doLogout=function(){
   _doLogout9();
 };
 
+
+/* =====================================================================
+   RZand+ 10 — Esqueci minha senha / Alterar senha (login, configurações,
+   modo garçom e funcionário)
+   ===================================================================== */
+function errSenhaPT(e){
+  const c=e&&e.code||'';
+  return {'auth/invalid-credential':'Senha atual incorreta.','auth/wrong-password':'Senha atual incorreta.','auth/user-not-found':'E-mail não encontrado.',
+    'auth/invalid-email':'E-mail inválido.','auth/weak-password':'A nova senha precisa de pelo menos 6 caracteres.','auth/too-many-requests':'Muitas tentativas. Aguarde alguns minutos.',
+    'auth/requires-recent-login':'Entre de novo e repita.','auth/network-request-failed':'Sem internet.'}[c]||('Erro: '+(c||e&&e.message||''));
+}
+function modalEsqueci(emailIni){
+  openModal('🔑 Esqueci minha senha',`
+    <p style="color:var(--muted);margin-top:0">Digite o e-mail da conta. Você vai receber um link para criar uma senha nova.</p>
+    <input class="finput" id="rsEmail" type="email" value="${esc(emailIni||'')}" placeholder="seu@email.com">
+    <div id="rsMsg" style="font-size:13px;min-height:18px"></div>`,()=>{
+    const em=$('#rsEmail').value.trim(); if(!em){toast('Digite o e-mail','bad');return false;}
+    const msg=$('#rsMsg'); msg.style.color='var(--muted)'; msg.textContent='Enviando…';
+    auth.sendPasswordResetEmail(em).then(()=>{
+      $('#modal .modal-body').innerHTML=`<div style="text-align:center;padding:10px 0"><div style="font-size:40px">📧</div>
+        <div style="font-weight:800;font-size:17px;margin:8px 0">Link enviado!</div>
+        <div style="color:var(--muted);line-height:1.5">Se <b>${esc(em)}</b> tiver conta no sistema, chega em instantes um e-mail com o link para criar a senha nova.<br>Não achou? Olhe na caixa de <b>spam</b> ou <b>promoções</b>.</div></div>`;
+      $('#modal .modal-foot').innerHTML=`<button class="cancel" style="color:var(--accent)" onclick="closeModal()">OK</button>`;
+    }).catch(e=>{msg.style.color='var(--danger)';msg.textContent=errSenhaPT(e);});
+    return false;
+  });
+}
+function modalAlterarSenha(emailFixo){
+  openModal('🔒 Alterar senha',`
+    ${emailFixo?`<div style="color:var(--muted);font-size:13px;margin-bottom:10px">Conta: <b>${esc(emailFixo)}</b></div>`
+      :`<label class="fl">E-mail da conta</label><input class="finput" id="asEmail" type="email" value="${esc(($('#authEmail')||{}).value||'')}" placeholder="seu@email.com">`}
+    <label class="fl">Senha atual</label><input class="finput" id="asAtual" type="password" autocomplete="current-password">
+    <label class="fl">Nova senha (mínimo 6)</label><input class="finput" id="asNova" type="password" autocomplete="new-password">
+    <label class="fl">Repetir a nova senha</label><input class="finput" id="asConf" type="password" autocomplete="new-password">
+    <button style="color:var(--muted);font-size:13px;padding:2px 0" onclick="closeModal();modalEsqueci(${emailFixo?`'${esc(emailFixo)}'`:"(document.getElementById('asEmail')||{}).value"})">Não lembro a senha atual</button>
+    <div id="asMsg" style="font-size:13px;min-height:18px;color:var(--danger)"></div>`,()=>{
+    const em=emailFixo||$('#asEmail').value.trim(), at=$('#asAtual').value, nv=$('#asNova').value, cf=$('#asConf').value, msg=$('#asMsg');
+    if(!em||!at){msg.textContent='Preencha e-mail e senha atual.';return false;}
+    if(nv.length<6){msg.textContent='A nova senha precisa de pelo menos 6 caracteres.';return false;}
+    if(nv!==cf){msg.textContent='As novas senhas não conferem.';return false;}
+    if(nv===at){msg.textContent='A nova senha é igual à atual.';return false;}
+    msg.style.color='var(--muted)'; msg.textContent='Alterando…';
+    const jaLogado=currentUser&&currentUser.email===em;
+    auth.signInWithEmailAndPassword(em,at).then(c=>{const u=(c&&c.user)||auth.currentUser;return u.updatePassword(nv);})
+      .then(()=>{closeModal();toast('Senha alterada com sucesso ✓','good');if(!jaLogado&&!currentUser){}})
+      .catch(e=>{msg.style.color='var(--danger)';msg.textContent=errSenhaPT(e);});
+    return false;
+  });
+}
+/* tela de login: links */
+const _showLogin10=showLogin;
+showLogin=function(){
+  _showLogin10();
+  const box=document.querySelector('.auth-box'); if(!box) return;
+  if(document.getElementById('authEmail')){
+    const btn=box.querySelector('.auth-btn');
+    if(btn) btn.insertAdjacentHTML('afterend',`<div style="display:flex;justify-content:space-between;margin-top:12px;font-size:13.5px">
+      <a style="color:var(--accent);font-weight:700;cursor:pointer" onclick="modalEsqueci((document.getElementById('authEmail')||{}).value)">Esqueci minha senha</a>
+      <a style="color:var(--muted);font-weight:700;cursor:pointer" onclick="modalAlterarSenha()">Alterar senha</a></div>`);
+  }
+};
+const _showLoginEquipe10=showLoginEquipe;
+showLoginEquipe=function(){
+  _showLoginEquipe10();
+  const btn=document.querySelector('.auth-box .auth-btn');
+  if(btn) btn.insertAdjacentHTML('afterend',`<div style="text-align:center;margin-top:12px;font-size:13.5px"><a style="color:var(--accent);font-weight:700;cursor:pointer" onclick="openModal('Esqueci minha senha','<p style=&quot;color:var(--muted);margin:0&quot;>Peça para a gerente: em <b>Configurações › Equipe › Logins e senhas</b> ela troca a sua senha ou cria um acesso novo.</p>',null)">Esqueci minha senha</a></div>`);
+};
+/* configurações: cartão da conta */
+const _renderConfig10=renderConfig;
+renderConfig=function(){
+  _renderConfig10();
+  const g=view.querySelector('.cfg-grid'); if(!g||!currentUser) return;
+  g.insertAdjacentHTML('afterbegin',`<div class="cfg-card"><h3>👤 Conta e senha de acesso</h3>
+    <p>Login da loja: <b>${esc(currentUser.email)}</b>. Esta é a senha do login (diferente da senha do gerente das configurações).</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" onclick="modalAlterarSenha('${esc(currentUser.email)}')">Alterar senha</button>
+    <button class="btn gho" onclick="modalEsqueci('${esc(currentUser.email)}')">Enviar link de redefinição por e-mail</button></div></div>`);
+};
+/* modo garçom aberto pela gerente: "esqueci" na janela de voltar ao caixa */
+const _trocarModo10=trocarModoAparelho;
+trocarModoAparelho=function(n){
+  _trocarModo10(n);
+  const i=$('#reauthPass'); if(i&&currentUser) i.insertAdjacentHTML('afterend',`<button style="color:var(--muted);font-size:13px;padding:2px 0" onclick="closeModal();modalEsqueci('${esc(currentUser.email)}')">Esqueci a senha da conta</button>`);
+};
+/* funcionário troca a própria senha */
+const _sairModoAux10=sairModoAux;
+sairModoAux=function(){
+  _sairModoAux10();
+  if(STAFF&&currentUser){const b=$('#modal .modal-body');if(b)b.insertAdjacentHTML('beforeend',`<button class="action-row" onclick="closeModal();modalAlterarSenha('${esc(currentUser.email)}')"><span class="al">🔒 Trocar minha senha</span></button>`);}
+};
+
 /* ============ Start ============ */
 // Auth listener handles startup — see onAuthStateChanged above
 if(MODO==='qr') iniciarQR(); else showLoading('Conectando...');
