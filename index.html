@@ -5745,6 +5745,38 @@ renderFinanceiro=function(){
   if(ar){ar.querySelector('.l').textContent='Vendido no fiado (período)';}
 };
 
+
+/* =====================================================================
+   RZand+ 9 — Celular do garçom/cozinha só volta ao caixa com a senha
+   da conta da gerente (re-autenticação no Firebase)
+   ===================================================================== */
+trocarModoAparelho=function(novo){
+  if(STAFF){toast('Sem permissão','bad');return;}
+  const exec=()=>{lsSet('rz_modo',novo);location.href=baseURL();};
+  if(MODO!=='caixa'&&novo==='caixa'){
+    openModal('🔒 Voltar para o caixa',`<p style="color:var(--muted);margin-top:0">Só a gerente pode abrir o caixa neste aparelho. Digite a <b>senha da conta</b> (${esc(currentUser.email)}).</p>
+      <input class="finput" id="reauthPass" type="password" placeholder="Senha da conta">`,()=>{
+      const pw=$('#reauthPass').value; if(!pw){toast('Digite a senha','bad');return false;}
+      auth.signInWithEmailAndPassword(currentUser.email,pw).then(exec).catch(()=>{toast('Senha incorreta','bad');const i=$('#reauthPass');if(i){i.value='';i.focus();}});
+      return false;
+    });
+    return;
+  }
+  exec();
+};
+/* modo garçom/cozinha aberto pela gerente: sair da conta também pede a senha */
+const _doLogout9=doLogout;
+doLogout=function(){
+  if(MODO!=='caixa'&&!STAFF){
+    openModal('🔒 Sair da conta',`<p style="color:var(--muted);margin-top:0">Digite a senha da conta para sair deste aparelho.</p><input class="finput" id="reauthPass2" type="password" placeholder="Senha da conta">`,()=>{
+      const pw=$('#reauthPass2').value; if(!pw) return false;
+      auth.signInWithEmailAndPassword(currentUser.email,pw).then(()=>{closeModal();auth.signOut();}).catch(()=>toast('Senha incorreta','bad'));
+      return false;
+    }); return;
+  }
+  _doLogout9();
+};
+
 /* ============ Start ============ */
 // Auth listener handles startup — see onAuthStateChanged above
 if(MODO==='qr') iniciarQR(); else showLoading('Conectando...');
