@@ -506,6 +506,18 @@ body[data-tema="claro"] .key.q,body[data-tema="creme"] .key.q{background:var(--s
 .acc-row .tx b{display:block;font-size:14px}
 .acc-row .tx span{font-size:12px;color:var(--muted)}
 .cod-loja{font-family:'Spline Sans Mono',monospace;font-weight:800;font-size:18px;letter-spacing:.04em;background:var(--surface2);border:1px dashed var(--line2);border-radius:10px;padding:8px 12px;display:inline-block}
+
+/* ---------- RZand+ 7: central financeira ---------- */
+.fin-layout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:14px;align-items:start}
+.fin-nav{position:sticky;top:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:8px;display:flex;flex-direction:column;gap:2px}
+.fin-nav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:11px 12px;border-radius:10px;font-weight:700;font-size:14px;color:var(--muted);border-left:3px solid transparent}
+.fin-nav button span{width:22px;text-align:center}
+.fin-nav button:hover{background:var(--surface2);color:var(--text)}
+.fin-nav button.on{background:var(--surface2);color:var(--text);border-left-color:var(--accent)}
+.fin-nav .nb{margin-left:auto;background:var(--danger);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px}
+.fin-nav .nb2{background:#ffb547;color:#1a1005}
+.fin-main{min-width:0}
+@media(max-width:820px){.fin-layout{grid-template-columns:1fr}.fin-nav{flex-direction:row;overflow-x:auto;position:static}.fin-nav button{white-space:nowrap;width:auto;border-left:none;border-bottom:3px solid transparent}.fin-nav button.on{border-bottom-color:var(--accent)}}
 </style>
 </head>
 <body>
@@ -3985,7 +3997,7 @@ renderFinanceiro=function(){
   const A=db.config.arquivo||{};
   if(A.ate&&finDe<=A.ate&&!arqCarregado.has(finDe+'|'+finAte)){
     const h=view.querySelector('.scr-title'); if(h) h.insertAdjacentHTML('beforeend',' <span style="font-size:12px;color:var(--muted);font-weight:600">· buscando vendas antigas…</span>');
-    carregarArquivo(finDe,finAte).then(()=>{if(current==='financeiro')_renderFin3();});
+    carregarArquivo(finDe,finAte).then(()=>{if(current==='financeiro')renderFinanceiro();});
   }
 };
 const _gerarRelVendas3=gerarRelatorioVendas;
@@ -5367,6 +5379,370 @@ renderConfig=function(){
     <button class="btn pri" onclick="db.config.fin={impostoPct:parseFloat($('#cfImp').value)||0,taxaPrevistaPct:parseFloat($('#cfTx').value)||0};store.save();toast('Salvo','good');renderConfig()">Salvar</button>
     <p style="margin:10px 0 0;font-size:12px">A taxa média serve só para a previsão no cadastro. No Financeiro entra a taxa real de cada venda (pela maquininha usada).</p>
   </div>`);
+};
+
+
+/* =====================================================================
+   RZand+ 7 — Central financeira: menu lateral, entradas por forma,
+   bruto × líquido, despesas, contas a pagar, a receber (fiado) e
+   relatório personalizado (imprimir / Excel)
+   ===================================================================== */
+let finSecao='geral';
+const FIN_SECOES=[['geral','📊','Visão geral'],['entradas','💰','Entradas'],['resultado','📈','Bruto × líquido'],['despesas','🧾','Despesas'],
+  ['pagar','⏰','Contas a pagar'],['receber','📥','A receber'],['relatorio','🛠','Relatório personalizado']];
+const _migrate7=migrate;
+migrate=function(d){
+  d=_migrate7(d); if(!d) return d;
+  (d.lancamentos||[]).forEach(l=>{if(l.pago===undefined)l.pago=true;});
+  return d;
+};
+function lancPendentes(){return (db.lancamentos||[]).filter(l=>!l.pago);}
+function hojeIso(){return isoHoje();}
+function addMeses(iso,n){const [y,m,d]=iso.split('-').map(Number);const dt=new Date(y,m-1+n,1);const ult=new Date(dt.getFullYear(),dt.getMonth()+1,0).getDate();dt.setDate(Math.min(d,ult));return isoData(dt);}
+function vendasPeriodo(de,ate){
+  const t0=new Date(de+'T00:00:00').getTime(), t1=new Date(ate+'T23:59:59').getTime();
+  return comArquivo(()=>db.vendas.filter(v=>{if(v.cancelada)return false;const t=vendaTs(v);return t>=t0&&t<=t1;}));
+}
+function partesVenda(v){
+  if(v.metodo==='misto'&&v.pagamentos) return v.pagamentos.map(p=>({metodo:p.metodo,valor:p.valor,bandeira:p.bandeira||'',parcelas:p.parcelas||1,taxa:r2(p.valor*(p.taxaPct||0)/100)}));
+  return [{metodo:v.metodo||'outros',valor:v.valor,bandeira:(v.cartao&&v.cartao.bandeira)||'',parcelas:(v.cartao&&v.cartao.parcelas)||1,taxa:v.taxaCartao||0}];
+}
+function dataHoraV(v){const t=vendaTs(v);if(!t)return v.dataHora||'';const d=new Date(t);return brData(isoData(d))+' '+horaDe(t);}
+const FORMAS=[['dinheiro','Dinheiro'],['pix','PIX'],['credito','Crédito'],['debito','Débito'],['fiado','Fiado']];
+
+/* ---------- moldura com menu lateral ---------- */
+const _renderFin7=renderFinanceiro;
+renderFinanceiro=function(){
+  _renderFin7();
+  const filtros=view.querySelector('.fin-filtros'); if(!filtros) return;
+  const resto=[]; let n=filtros.nextElementSibling; while(n){resto.push(n);n=n.nextElementSibling;}
+  const lay=document.createElement('div'); lay.className='fin-layout';
+  lay.innerHTML=`<nav class="fin-nav">${FIN_SECOES.map(s=>`<button class="${finSecao===s[0]?'on':''}" onclick="finSecao='${s[0]}';renderFinanceiro()"><span>${s[1]}</span>${s[2]}${badgeSecao(s[0])}</button>`).join('')}</nav><div class="fin-main" id="finMain"></div>`;
+  filtros.after(lay);
+  const main=lay.querySelector('#finMain');
+  if(finSecao==='geral'){resto.forEach(e=>main.appendChild(e));}
+  else{resto.forEach(e=>e.remove());main.innerHTML=({entradas:secEntradas,resultado:secResultado,despesas:secDespesas,pagar:secPagar,receber:secReceber,relatorio:secRelatorio}[finSecao]||(()=>''))();}
+  if(['pagar','receber'].includes(finSecao)) filtros.style.display='none';
+  const t=view.querySelector('.scr-title'); if(t&&finSecao!=='geral') t.insertAdjacentHTML('beforeend',` <span style="color:var(--muted);font-weight:600;font-size:15px">· ${FIN_SECOES.find(s=>s[0]===finSecao)[2]}</span>`);
+};
+function badgeSecao(k){
+  if(k==='pagar'){const v=lancPendentes().filter(l=>l.tipo==='saida'&&l.data<=hojeIso()).length;return v?`<b class="nb">${v}</b>`:'';}
+  if(k==='receber'){const v=listaDevedores().length;return v?`<b class="nb nb2">${v}</b>`:'';}
+  return '';
+}
+const kpiM=(l,v,h,cor)=>`<div class="kpi"><div class="l">${l}</div><div class="v" ${cor?`style="color:${cor}"`:''}>${v}</div>${h?`<div class="h">${h}</div>`:''}</div>`;
+
+/* ---------- ENTRADAS (por forma de pagamento) ---------- */
+let entForma='todas';
+function secEntradas(){
+  const vs=vendasPeriodo(finDe,finAte);
+  const rows=[]; vs.forEach(v=>partesVenda(v).forEach(p=>rows.push({v,...p})));
+  (db.lancamentos||[]).filter(l=>l.tipo==='entrada'&&l.data>=finDe&&l.data<=finAte).forEach(l=>rows.push({lanc:l,metodo:'outras',valor:l.valor}));
+  const tot={}; rows.forEach(r=>{tot[r.metodo]=(tot[r.metodo]||0)+r.valor;});
+  const total=rows.reduce((s,r)=>s+r.valor,0);
+  const filtradas=entForma==='todas'?rows:rows.filter(r=>r.metodo===entForma);
+  const nomeF=k=>k==='outras'?'Outras receitas':metodoLabel(k);
+  const lista=filtradas.slice().sort((a,b)=>(b.v?vendaTs(b.v):0)-(a.v?vendaTs(a.v):0));
+  return `<div class="kpis">${kpiM('Total de entradas',money(total),rows.length+' lançamento(s)')}${[...FORMAS,['outras','Outras receitas']].map(f=>kpiM(f[1],money(tot[f[0]]||0),total?fmtPct(pct(tot[f[0]]||0,total)):'')).join('')}</div>
+  <div class="fin-filtros" style="margin-bottom:10px">${[['todas','Todas'],...FORMAS,['outras','Outras receitas']].map(f=>`<button class="chip ${entForma===f[0]?'on':''}" onclick="entForma='${f[0]}';renderFinanceiro()">${f[1]}${f[0]!=='todas'&&tot[f[0]]?' · '+money(tot[f[0]]):''}</button>`).join('')}
+    <div style="flex:1"></div><button class="btn gho" onclick="exportarCSV('entradas')">Exportar Excel</button></div>
+  <div class="card"><table class="tbl"><thead><tr><th>Data / hora</th><th>Venda</th><th>Cliente / descrição</th><th>Forma</th><th class="right-num">Valor</th></tr></thead><tbody>
+  ${lista.slice(0,400).map(r=>r.v?`<tr><td class="mono">${dataHoraV(r.v)}</td><td class="mono">#${r.v.numero}</td><td>${esc(r.v.cliente||'')}${r.v.mesa?' · '+esc(r.v.mesa):''}</td>
+      <td>${nomeF(r.metodo)}${r.bandeira?' · '+bandNome(r.bandeira):''}${r.parcelas>1?' · '+r.parcelas+'x':''}${r.v.metodo==='misto'?' <span style="color:var(--faint);font-size:12px">(dividido)</span>':''}</td><td class="right-num mono">${money(r.valor)}</td></tr>`
+    :`<tr><td class="mono">${brData(r.lanc.data)}</td><td>—</td><td>${esc(r.lanc.descricao||r.lanc.categoria)}</td><td>Outras receitas</td><td class="right-num mono">${money(r.valor)}</td></tr>`).join('')
+    ||'<tr><td colspan="5" style="text-align:center;color:var(--faint);padding:30px">Nenhuma entrada no período</td></tr>'}
+  </tbody></table></div>${lista.length>400?`<p style="color:var(--faint);font-size:12px">Mostrando 400 de ${lista.length}. Use "Exportar Excel" para ver todas.</p>`:''}
+  <div style="text-align:right;font-weight:800;font-size:16px;margin-top:10px">Total ${entForma==='todas'?'':nomeF(entForma)}: <span class="mono">${money(filtradas.reduce((s,r)=>s+r.valor,0))}</span></div>`;
+}
+
+/* ---------- BRUTO × LÍQUIDO ---------- */
+function secResultado(){
+  const f=calcFinanceiro(finDe,finAte), R=f.receita||0;
+  const vs=vendasPeriodo(finDe,finAte);
+  const dias={}; vs.forEach(v=>{const k=isoData(new Date(vendaTs(v)||Date.now()));const d=dias[k]||(dias[k]={b:0,tx:0,imp:0,cmv:0});
+    d.b+=v.valor;d.tx+=v.taxaCartao||0;d.imp+=v.valor*((v.impostoPct!==undefined?v.impostoPct:+finCfg().impostoPct)||0)/100;
+    (v.itens||[]).forEach(i=>{const p=db.produtos.find(x=>x.id===i.id)||{};d.cmv+=((i.custo!==undefined?i.custo:+p.custo||0)+(i.emb!==undefined?i.emb:+p.custoEmb||0)+(i.frete!==undefined?i.frete:+p.custoFrete||0))*i.qtd;});});
+  const ks=Object.keys(dias).sort().reverse();
+  return `<div class="kpis">${kpiM('Faturamento bruto',money(f.receita),f.n+' venda(s)')}${kpiM('Faturamento líquido',money(f.receitaLiquida),'bruto − impostos − taxas de cartão')}
+    ${kpiM('Custo real das vendas',money(f.cmv+f.embFrete),'compra + embalagem + transporte')}${kpiM('Lucro bruto',money(f.lucroBruto),fmtPct(pct(f.lucroBruto,R)))}
+    ${kpiM('Despesas',money(f.despesas))}${kpiM('Lucro líquido',money(f.liquido),fmtPct(pct(f.liquido,R)),f.liquido<0?'var(--danger)':'var(--money)')}</div>
+  <div class="card"><table class="tbl"><thead><tr><th>Dia</th><th class="right-num">Bruto</th><th class="right-num">Impostos + taxas</th><th class="right-num">Líquido</th><th class="right-num">Custo real</th><th class="right-num">Lucro bruto</th><th class="right-num">Margem</th></tr></thead><tbody>
+  ${ks.map(k=>{const d=dias[k],liq=d.b-d.tx-d.imp,lb=liq-d.cmv;return `<tr><td class="mono">${brData(k)}</td><td class="right-num mono">${money(d.b)}</td><td class="right-num mono">${money(d.tx+d.imp)}</td><td class="right-num mono">${money(liq)}</td><td class="right-num mono">${money(d.cmv)}</td><td class="right-num mono ${lb<0?'neg':''}">${money(lb)}</td><td class="right-num mono">${fmtPct(pct(lb,d.b))}</td></tr>`;}).join('')
+    ||'<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:30px">Sem vendas no período</td></tr>'}</tbody></table></div>
+  <p style="color:var(--faint);font-size:12.5px">As despesas da loja são descontadas no total do período (Lucro líquido), não dia a dia.</p>`;
+}
+
+/* ---------- DESPESAS ---------- */
+let despFiltro='todas';
+function secDespesas(){
+  const L=(db.lancamentos||[]).filter(l=>l.tipo==='saida'&&l.data>=finDe&&l.data<=finAte);
+  const pagas=L.filter(l=>l.pago), pend=L.filter(l=>!l.pago), venc=pend.filter(l=>l.data<hojeIso());
+  const s=a=>a.reduce((t,l)=>t+l.valor,0);
+  const lista=(despFiltro==='pagas'?pagas:despFiltro==='pendentes'?pend:L).slice().sort((a,b)=>a.data.localeCompare(b.data));
+  return `<div class="kpis">${kpiM('Despesas do período',money(s(L)),L.length+' conta(s)')}${kpiM('Já pagas',money(s(pagas)),pagas.length+' conta(s)','var(--money)')}
+    ${kpiM('A pagar',money(s(pend)),pend.length+' conta(s)')}${kpiM('Vencidas',money(s(venc)),venc.length+' conta(s)',venc.length?'var(--danger)':'')}</div>
+  <div class="fin-filtros" style="margin-bottom:10px">${[['todas','Todas'],['pagas','Pagas'],['pendentes','A pagar']].map(f=>`<button class="chip ${despFiltro===f[0]?'on':''}" onclick="despFiltro='${f[0]}';renderFinanceiro()">${f[1]}</button>`).join('')}
+    <div style="flex:1"></div><button class="btn gho" onclick="exportarCSV('despesas')">Exportar Excel</button><button class="btn pri" onclick="editLancamento(null,'saida')">+ Despesa</button></div>
+  ${tabelaContas(lista)}`;
+}
+function tabelaContas(lista){
+  return `<div class="card"><table class="tbl"><thead><tr><th>Vencimento</th><th>Descrição</th><th>Categoria</th><th>Situação</th><th class="right-num">Valor</th><th class="right-num"></th></tr></thead><tbody>
+  ${lista.map(l=>{const venc=!l.pago&&l.data<hojeIso();return `<tr><td class="mono ${venc?'neg':''}">${brData(l.data)}</td><td>${esc(l.descricao||'—')}${l.grupo?' <span style="color:var(--faint);font-size:11px">↻ mensal</span>':''}</td><td style="color:var(--muted)">${esc(l.categoria||'')}</td>
+    <td>${l.pago?`<span class="badge ok">Paga${l.pagoEm?' '+brData(l.pagoEm).slice(0,5):''}</span>`:`<span class="badge ${venc?'':'pend'}" style="${venc?'color:var(--danger);border-color:var(--danger)':''}">${venc?'Vencida':'A pagar'}</span>`}</td>
+    <td class="right-num mono">${money(l.valor)}</td><td class="right-num" style="white-space:nowrap">${l.pago?'':`<button class="btn pri" style="padding:7px 10px;font-size:12.5px" onclick="pagarConta('${l.id}')">Pagar</button>`} <button class="rowbtn edit" onclick="editLancamento('${l.id}')">✎</button></td></tr>`;}).join('')
+    ||'<tr><td colspan="6" style="text-align:center;color:var(--faint);padding:30px">Nenhuma conta</td></tr>'}</tbody></table></div>`;
+}
+function pagarConta(id){const l=db.lancamentos.find(x=>x.id===id);if(!l)return;l.pago=true;l.pagoEm=hojeIso();store.save();renderFinanceiro();toast('Conta paga: '+(l.descricao||l.categoria),'good');checarNotificacoes();}
+
+/* ---------- CONTAS A PAGAR ---------- */
+function secPagar(){
+  const P=lancPendentes().filter(l=>l.tipo==='saida').sort((a,b)=>a.data.localeCompare(b.data));
+  const h=hojeIso(), em7=isoData(new Date(Date.now()+7*864e5)), fimMes=isoData(new Date(new Date().getFullYear(),new Date().getMonth()+1,0));
+  const venc=P.filter(l=>l.data<h), hoje=P.filter(l=>l.data===h), sem=P.filter(l=>l.data>h&&l.data<=em7), mes=P.filter(l=>l.data<=fimMes);
+  const s=a=>a.reduce((t,l)=>t+l.valor,0);
+  return `<div class="kpis">${kpiM('Vencidas',money(s(venc)),venc.length+' conta(s)',venc.length?'var(--danger)':'')}${kpiM('Vencem hoje',money(s(hoje)),hoje.length+' conta(s)')}
+    ${kpiM('Próximos 7 dias',money(s(sem)),sem.length+' conta(s)')}${kpiM('Previsto até o fim do mês',money(s(mes)),mes.length+' conta(s)')}${kpiM('Total a pagar',money(s(P)),P.length+' conta(s)')}</div>
+  <div style="display:flex;gap:8px;margin-bottom:10px"><div style="flex:1;color:var(--muted);font-size:13px;align-self:center">Contas lançadas como "A pagar". Ao pagar, toque em <b>Pagar</b>.</div><button class="btn pri" onclick="editLancamento(null,'saida')">+ Conta a pagar</button></div>
+  ${tabelaContas(P)}`;
+}
+
+/* ---------- A RECEBER ---------- */
+function secReceber(){
+  const dev=listaDevedores(); const totFiado=dev.reduce((s,c)=>s-c.saldo,0);
+  const rec=lancPendentes().filter(l=>l.tipo==='entrada').sort((a,b)=>a.data.localeCompare(b.data)); const totRec=rec.reduce((s,l)=>s+l.valor,0);
+  const mesas=(db.mesas||[]).filter(m=>(m.comanda||[]).length); const totMesas=mesas.reduce((s,m)=>s+(m.comanda||[]).reduce((t,i)=>t+i.preco*i.qtd,0),0);
+  return `<div class="kpis">${kpiM('Fiado (crédito de clientes)',money(totFiado),dev.length+' cliente(s) devendo','var(--danger)')}${kpiM('Outras receitas a receber',money(totRec),rec.length+' lançamento(s)')}
+    ${kpiM('Mesas abertas agora',money(totMesas),mesas.length+' mesa(s)')}${kpiM('Total a receber',money(totFiado+totRec+totMesas),'')}</div>
+  <div class="fin-grid">
+    <div class="fin-box"><h4>Clientes com fiado pendente</h4>${dev.map(c=>`<div class="fin-row"><span>${esc(c.nome)}</span><span><b class="mono neg">${money(-c.saldo)}</b> <button class="btn gho" style="padding:5px 9px;font-size:12px" onclick="db.creditoClienteId='${c.id}';go('credito')">Abrir</button></span></div>`).join('')||'<div style="color:var(--faint);font-size:13px">Ninguém devendo ✓</div>'}
+      ${dev.length?`<button class="btn gho" style="margin-top:10px" onclick="relatorioDevedores()">Relatório de devedores</button>`:''}</div>
+    <div class="fin-box"><h4>Receitas a receber (eventos, encomendas…)</h4>${rec.map(l=>`<div class="fin-row"><span><span class="mono" style="color:var(--faint)">${brData(l.data).slice(0,5)}</span> ${esc(l.descricao||l.categoria)}</span><span><b class="mono">${money(l.valor)}</b> <button class="btn pri" style="padding:5px 9px;font-size:12px" onclick="pagarConta('${l.id}')">Recebido</button></span></div>`).join('')||'<div style="color:var(--faint);font-size:13px">Nada pendente</div>'}
+      <button class="btn gho" style="margin-top:10px" onclick="editLancamento(null,'entrada')">+ Receita a receber</button></div>
+  </div>
+  <p style="color:var(--faint);font-size:12.5px">Vendas no cartão de crédito caem na conta conforme o prazo de cada maquininha. O Financeiro considera a venda no dia em que foi feita.</p>`;
+}
+
+/* ---------- RELATÓRIO PERSONALIZADO ---------- */
+let rp={tipo:'entradas',formas:['dinheiro','pix','credito','debito','fiado'],canal:'',atendente:'',setor:'',status:'todas',agrupar:'nenhum'};
+const RP_TIPOS=[['entradas','Entradas (vendas por forma de pagamento)'],['produtos','Produtos vendidos (custo e lucro)'],['despesas','Despesas / contas'],['resultado','Resultado (bruto × líquido)']];
+function rpLinhas(){
+  const vs=vendasPeriodo(finDe,finAte);
+  if(rp.tipo==='entradas'){
+    const out=[]; vs.forEach(v=>{if(rp.canal&&(v.canal||'balcao')!==rp.canal)return;if(rp.atendente&&(v.vendedor||'')!==rp.atendente)return;
+      partesVenda(v).forEach(p=>{if(!rp.formas.includes(p.metodo))return;const t=vendaTs(v);
+        out.push({dia:t?isoData(new Date(t)):'',mes:t?isoData(new Date(t)).slice(0,7):'',data:dataHoraV(v),venda:'#'+v.numero,cliente:v.cliente||'',forma:metodoLabel(p.metodo)+(p.bandeira?' '+bandNome(p.bandeira):''),formaK:metodoLabel(p.metodo),
+          canal:{balcao:'Balcão',mesa:'Mesa',entrega:'Entrega'}[v.canal||'balcao'],atendente:v.vendedor||'—',valor:p.valor,taxa:p.taxa});});});
+    return {cols:[['data','Data/hora'],['venda','Venda'],['cliente','Cliente'],['forma','Forma'],['canal','Canal'],['atendente','Atendente'],['valor','Valor','$'],['taxa','Taxa cartão','$']],rows:out};
+  }
+  if(rp.tipo==='produtos'){
+    const out=[]; vs.forEach(v=>{if(rp.canal&&(v.canal||'balcao')!==rp.canal)return;const itens=v.itens||[];const bruto=itens.reduce((s,i)=>s+i.preco*i.qtd,0);const fator=bruto>0?Math.min(1,(v.valor-(v.taxa||0))/bruto):1;const t=vendaTs(v);
+      itens.forEach(i=>{const p=db.produtos.find(x=>x.id===i.id)||{};const set=p.categoria||'Sem setor';if(rp.setor&&set!==rp.setor)return;const at=i.garcom||v.vendedor||'—';if(rp.atendente&&at!==rp.atendente)return;
+        const c=((i.custo!==undefined?i.custo:+p.custo||0)+(i.emb!==undefined?i.emb:+p.custoEmb||0)+(i.frete!==undefined?i.frete:+p.custoFrete||0))*i.qtd, val=i.preco*i.qtd*fator;
+        out.push({dia:t?isoData(new Date(t)):'',mes:t?isoData(new Date(t)).slice(0,7):'',data:dataHoraV(v),produto:i.nome,setor:set,atendente:at,qtd:i.qtd,valor:val,custo:c,lucro:val-c});});});
+    return {cols:[['data','Data/hora'],['produto','Produto'],['setor','Setor'],['atendente','Atendente'],['qtd','Qtd','n'],['valor','Venda','$'],['custo','Custo real','$'],['lucro','Lucro bruto','$']],rows:out};
+  }
+  if(rp.tipo==='despesas'){
+    const out=(db.lancamentos||[]).filter(l=>l.tipo==='saida'&&l.data>=finDe&&l.data<=finAte&&(rp.status==='todas'||(rp.status==='pagas'?l.pago:!l.pago)))
+      .map(l=>({dia:l.data,mes:l.data.slice(0,7),data:brData(l.data),descricao:l.descricao||'',categoria:l.categoria||'',situacao:l.pago?'Paga':(l.data<hojeIso()?'Vencida':'A pagar'),valor:l.valor}));
+    return {cols:[['data','Vencimento'],['descricao','Descrição'],['categoria','Categoria'],['situacao','Situação'],['valor','Valor','$']],rows:out};
+  }
+  const f=calcFinanceiro(finDe,finAte);
+  const lin=[['Faturamento bruto',f.receita],['(−) Impostos',f.impostos],['(−) Taxas de cartão',f.taxasCartao],['= Faturamento líquido',f.receitaLiquida],['(−) Custo das mercadorias',f.cmv],['(−) Embalagem e transporte',f.embFrete],['= Lucro bruto',f.lucroBruto],['(−) Despesas',f.despesas],['= Lucro líquido',f.liquido]];
+  return {cols:[['item','Item'],['valor','Valor','$'],['pct','% do faturamento']],rows:lin.map(([a,v])=>({item:a,valor:v,pct:fmtPct(pct(v,f.receita||0))}))};
+}
+function rpAgrupado(){
+  const r=rpLinhas(); const g=rp.agrupar;
+  if(g==='nenhum'||rp.tipo==='resultado') return r;
+  const chaveCol={dia:['dia','Dia'],mes:['mes','Mês'],forma:['formaK','Forma de pagamento'],atendente:['atendente','Atendente'],setor:['setor','Setor'],produto:['produto','Produto'],categoria:['categoria','Categoria'],canal:['canal','Canal']}[g];
+  if(!chaveCol) return r;
+  const num=r.cols.filter(c=>c[2]==='$'||c[2]==='n').map(c=>c[0]); const grp={};
+  r.rows.forEach(x=>{const k=x[chaveCol[0]]||'—';const o=grp[k]||(grp[k]={[chaveCol[0]]:k,qtdReg:0});o.qtdReg++;num.forEach(c=>o[c]=(o[c]||0)+(+x[c]||0));});
+  let rows=Object.values(grp); rows.sort((a,b)=>(g==='dia'||g==='mes')?String(a[chaveCol[0]]).localeCompare(b[chaveCol[0]]):(b.valor||0)-(a.valor||0));
+  rows.forEach(o=>{if(g==='dia')o[chaveCol[0]]=brData(o[chaveCol[0]]);if(g==='mes'){const [y,m]=String(o.mes).split('-');o.mes=(MESES[+m-1]||m)+'/'+y;}});
+  return {cols:[[chaveCol[0],chaveCol[1]],['qtdReg','Registros','n'],...r.cols.filter(c=>num.includes(c[0]))],rows};
+}
+function fmtCel(c,v){return c[2]==='$'?money(+v||0):c[2]==='n'?String(r2(+v||0)).replace('.',','):esc(String(v??''));}
+function secRelatorio(){
+  const atend=[...new Set(comArquivo(()=>db.vendas.map(v=>v.vendedor).filter(Boolean)).concat((db.equipe||[]).map(x=>x.nome)))];
+  const setores=setoresOrdenados().map(x=>x.nome);
+  const agrupOpts={entradas:[['nenhum','Sem agrupar (lista)'],['dia','Por dia'],['mes','Por mês'],['forma','Por forma de pagamento'],['atendente','Por atendente'],['canal','Por canal']],
+    produtos:[['nenhum','Sem agrupar (lista)'],['produto','Por produto'],['setor','Por setor'],['atendente','Por atendente'],['dia','Por dia'],['mes','Por mês']],
+    despesas:[['nenhum','Sem agrupar (lista)'],['categoria','Por categoria'],['mes','Por mês'],['dia','Por dia']],resultado:[['nenhum','—']]}[rp.tipo];
+  if(!agrupOpts.some(o=>o[0]===rp.agrupar)) rp.agrupar='nenhum';
+  const r=rpAgrupado(); const tots=r.cols.filter(c=>c[2]==='$'||c[2]==='n').map(c=>[c,r.rows.reduce((s,x)=>s+(+x[c[0]]||0),0)]);
+  return `<div class="fin-box" style="margin-bottom:14px"><h4>Monte o relatório do seu jeito (período: ${brData(finDe)} a ${brData(finAte)})</h4>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div style="flex:2;min-width:220px"><label class="fl">O que mostrar</label><select class="sel" onchange="rp.tipo=this.value;renderFinanceiro()">${RP_TIPOS.map(t=>`<option value="${t[0]}" ${rp.tipo===t[0]?'selected':''}>${t[1]}</option>`).join('')}</select></div>
+      <div style="flex:1;min-width:180px"><label class="fl">Agrupar</label><select class="sel" onchange="rp.agrupar=this.value;renderFinanceiro()">${agrupOpts.map(o=>`<option value="${o[0]}" ${rp.agrupar===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select></div>
+      ${rp.tipo==='entradas'||rp.tipo==='produtos'?`<div style="flex:1;min-width:150px"><label class="fl">Canal</label><select class="sel" onchange="rp.canal=this.value;renderFinanceiro()"><option value="">Todos</option>${[['balcao','Balcão'],['mesa','Mesas'],['entrega','Entregas']].map(c=>`<option value="${c[0]}" ${rp.canal===c[0]?'selected':''}>${c[1]}</option>`).join('')}</select></div>
+        <div style="flex:1;min-width:150px"><label class="fl">Atendente</label><select class="sel" onchange="rp.atendente=this.value;renderFinanceiro()"><option value="">Todos</option>${atend.map(a=>`<option ${rp.atendente===a?'selected':''}>${esc(a)}</option>`).join('')}</select></div>`:''}
+      ${rp.tipo==='produtos'?`<div style="flex:1;min-width:150px"><label class="fl">Setor</label><select class="sel" onchange="rp.setor=this.value;renderFinanceiro()"><option value="">Todos</option>${setores.map(s=>`<option ${rp.setor===s?'selected':''}>${esc(s)}</option>`).join('')}<option ${rp.setor==='Sem setor'?'selected':''}>Sem setor</option></select></div>`:''}
+      ${rp.tipo==='despesas'?`<div style="flex:1;min-width:150px"><label class="fl">Situação</label><select class="sel" onchange="rp.status=this.value;renderFinanceiro()">${[['todas','Todas'],['pagas','Pagas'],['pendentes','A pagar']].map(c=>`<option value="${c[0]}" ${rp.status===c[0]?'selected':''}>${c[1]}</option>`).join('')}</select></div>`:''}
+    </div>
+    ${rp.tipo==='entradas'?`<label class="fl">Formas de pagamento</label><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">${FORMAS.map(f=>`<button class="chip ${rp.formas.includes(f[0])?'on':''}" onclick="rpForma('${f[0]}')">${rp.formas.includes(f[0])?'✓ ':''}${f[1]}</button>`).join('')}
+      <button class="chip" onclick="rp.formas=['dinheiro'];renderFinanceiro()">Só dinheiro</button><button class="chip" onclick="rp.formas=['pix'];renderFinanceiro()">Só PIX</button><button class="chip" onclick="rp.formas=['credito','debito'];renderFinanceiro()">Só cartão</button></div>`:''}
+    <div style="display:flex;gap:8px;margin-top:8px"><button class="btn pri" onclick="imprimirRP()">Imprimir / PDF</button><button class="btn gho" onclick="exportarCSV('rp')">Exportar Excel</button></div>
+  </div>
+  <div class="card" style="overflow:auto"><table class="tbl"><thead><tr>${r.cols.map(c=>`<th class="${c[2]?'right-num':''}">${c[1]}</th>`).join('')}</tr></thead><tbody>
+    ${r.rows.slice(0,500).map(x=>`<tr>${r.cols.map(c=>`<td class="${c[2]?'right-num mono':''}">${fmtCel(c,x[c[0]])}</td>`).join('')}</tr>`).join('')||`<tr><td colspan="${r.cols.length}" style="text-align:center;color:var(--faint);padding:30px">Nada encontrado com esses filtros</td></tr>`}
+    ${rp.tipo!=='resultado'&&r.rows.length?`<tr style="font-weight:800">${r.cols.map((c,i)=>{const t=tots.find(x=>x[0][0]===c[0]);return `<td class="${c[2]?'right-num mono':''}">${i===0?'TOTAL':t?fmtCel(c,t[1]):''}</td>`;}).join('')}</tr>`:''}
+  </tbody></table></div>${r.rows.length>500?`<p style="color:var(--faint);font-size:12px">Mostrando 500 de ${r.rows.length} linhas — exporte para ver tudo.</p>`:''}`;
+}
+function rpForma(k){const i=rp.formas.indexOf(k);if(i>=0)rp.formas.splice(i,1);else rp.formas.push(k);renderFinanceiro();}
+function imprimirRP(){
+  const r=rpAgrupado(); const tit=RP_TIPOS.find(t=>t[0]===rp.tipo)[1];
+  const filtrosTxt=[rp.tipo==='entradas'?'Formas: '+rp.formas.map(metodoLabel).join(', '):'',rp.canal?'Canal: '+rp.canal:'',rp.atendente?'Atendente: '+rp.atendente:'',rp.setor?'Setor: '+rp.setor:''].filter(Boolean).join(' · ');
+  const tots=r.cols.filter(c=>c[2]).map(c=>[c,r.rows.reduce((s,x)=>s+(+x[c[0]]||0),0)]);
+  doPrint(`<div class="report"><h2>${esc(db.config.nomeLoja)}</h2><div class="rp-sub">${esc(tit.toUpperCase())}</div>
+    <div class="rp-meta">Período: ${brData(finDe)} a ${brData(finAte)}${filtrosTxt?'<br>'+esc(filtrosTxt):''}<br>Emitido em ${agora()}</div>
+    <table class="rp-tbl"><thead><tr>${r.cols.map(c=>`<th style="${c[2]?'text-align:right':''}">${c[1]}</th>`).join('')}</tr></thead><tbody>
+    ${r.rows.map(x=>`<tr>${r.cols.map(c=>`<td style="${c[2]?'text-align:right':''}">${fmtCel(c,x[c[0]])}</td>`).join('')}</tr>`).join('')}
+    ${rp.tipo!=='resultado'?`<tr>${r.cols.map((c,i)=>{const t=tots.find(x=>x[0][0]===c[0]);return `<td style="font-weight:800;${c[2]?'text-align:right':''}">${i===0?'TOTAL':t?fmtCel(c,t[1]):''}</td>`;}).join('')}</tr>`:''}
+    </tbody></table></div>`);
+}
+function exportarCSV(qual){
+  let cols,rows;
+  if(qual==='rp'){const r=rpAgrupado();cols=r.cols;rows=r.rows;}
+  else if(qual==='entradas'){const sv=rp.tipo,sf=rp.formas,sa=rp.agrupar;rp.tipo='entradas';rp.agrupar='nenhum';rp.formas=entForma==='todas'?FORMAS.map(f=>f[0]):[entForma];const r=rpLinhas();cols=r.cols;rows=r.rows;rp.tipo=sv;rp.formas=sf;rp.agrupar=sa;}
+  else {const sv=rp.tipo,ss=rp.status,sa=rp.agrupar;rp.tipo='despesas';rp.agrupar='nenhum';rp.status=despFiltro==='pendentes'?'pendentes':despFiltro;const r=rpLinhas();cols=r.cols;rows=r.rows;rp.tipo=sv;rp.status=ss;rp.agrupar=sa;}
+  const cel=(c,v)=>c[2]?String(r2(+v||0)).replace('.',','):'"'+String(v??'').replace(/"/g,'""')+'"';
+  const csv='﻿'+cols.map(c=>'"'+c[1]+'"').join(';')+'\n'+rows.map(x=>cols.map(c=>cel(c,x[c[0]])).join(';')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download=`relatorio-${qual}-${finDe}_a_${finAte}.csv`;a.click();toast('Planilha baixada (abre no Excel)','good');
+}
+
+/* ---------- despesa: paga / a pagar / repetir todo mês ---------- */
+const _editLanc7=editLancamento;
+editLancamento=function(id,tipo){
+  _editLanc7(id,tipo);
+  const l=id?db.lancamentos.find(x=>x.id===id):null; const tp=l?l.tipo:tipo;
+  const cat=$('#lcCat'); if(!cat) return;
+  const dl=$('#lcData'); if(dl&&dl.previousElementSibling) dl.previousElementSibling.textContent=tp==='saida'?'Data / vencimento':'Data / previsão';
+  cat.insertAdjacentHTML('afterend',`
+    <label class="fl">Situação</label>
+    <div class="canal-seg" style="margin-bottom:12px"><button type="button" id="lcPg1" class="${!l||l.pago?'on':''}" onclick="this.classList.add('on');document.getElementById('lcPg0').classList.remove('on')">${tp==='saida'?'Já paga':'Já recebida'}</button>
+      <button type="button" id="lcPg0" class="${l&&!l.pago?'on':''}" onclick="this.classList.add('on');document.getElementById('lcPg1').classList.remove('on')">${tp==='saida'?'A pagar':'A receber'}</button></div>
+    ${!l?`<label class="cfg-chk"><input type="checkbox" id="lcRec"> Repetir todo mês (próximos 12 meses) — ex.: aluguel, internet, salário</label>`:''}`);
+  const ok=modalConfirm;
+  modalConfirm=function(){
+    const pago=$('#lcPg1').classList.contains('on'); const rec=$('#lcRec')&&$('#lcRec').checked;
+    const n=db.lancamentos.length; const r=ok(); if(r===false) return false;
+    const alvo=l||(db.lancamentos.length>n?db.lancamentos[db.lancamentos.length-1]:null);
+    if(alvo){
+      alvo.pago=pago; if(pago&&!alvo.pagoEm) alvo.pagoEm=hojeIso(); if(!pago) delete alvo.pagoEm;
+      if(rec){const grupo=uid();alvo.grupo=grupo;for(let i=1;i<12;i++)db.lancamentos.push({...alvo,id:uid(),data:addMeses(alvo.data,i),pago:false,pagoEm:undefined,grupo,criadoEm:Date.now()});
+        db.lancamentos.forEach(x=>{if(x.pagoEm===undefined)delete x.pagoEm;});}
+      store.save(); if(current==='financeiro') renderFinanceiro();
+    }
+    return r;
+  };
+};
+/* aviso de contas vencendo */
+const _calcNotif7=calcNotificacoes;
+calcNotificacoes=function(){
+  const n=_calcNotif7(); const h=hojeIso(), am=isoData(new Date(Date.now()+864e5));
+  lancPendentes().filter(l=>l.tipo==='saida'&&l.data<=am).forEach(l=>n.push({id:'cp'+l.id+l.data,nivel:l.data<h?'critico':'aviso',ic:'⏰',
+    tit:(l.data<h?'Conta vencida: ':l.data===h?'Vence hoje: ':'Vence amanhã: ')+(l.descricao||l.categoria),txt:money(l.valor)+' · '+brData(l.data),acao:`closeModal();pagarConta('${l.id}')`,acaoTxt:'Paga ✓'}));
+  return n;
+};
+
+
+/* =====================================================================
+   RZand+ 8 — Financeiro: Crédito de clientes (fiado / pré-pago)
+   ===================================================================== */
+FIN_SECOES.splice(1,0,['credito','💳','Crédito de clientes']);
+let crFiltro='devedores', crBusca='';
+function clientesCredito(){return db.clientes.filter(c=>!c.nome.startsWith('Consumidor'));}
+function tipoMov(op){op=String(op||'');if(op.startsWith('Venda'))return 'consumo';if(op.startsWith('Adição'))return 'recebido';if(op.startsWith('Remoção'))return 'removido';if(op.startsWith('Cancelamento'))return 'estorno';return 'ajuste';}
+const TIPO_MOV={consumo:'Consumo (venda no crédito)',recebido:'Crédito adicionado / pagamento',removido:'Crédito removido',estorno:'Estorno de venda',ajuste:'Ajuste'};
+function diasDesde(d){return d?Math.floor((Date.now()-d.getTime())/864e5):null;}
+function infoCliente(c){
+  const h=c.historico||[]; let ultPag=null, ultCons=null, prim=null;
+  h.forEach(m=>{const d=parseBRDate(m.data);if(!d)return;if(!prim||d<prim)prim=d;const t=tipoMov(m.op);
+    if(t==='recebido'&&(!ultPag||d>ultPag))ultPag=d;if(t==='consumo'&&(!ultCons||d>ultCons))ultCons=d;});
+  const ref=ultPag||prim;
+  return {ultPag,ultCons,diasSemPagar:c.saldo<-0.005?diasDesde(ref):null};
+}
+function movPeriodo(de,ate){
+  const d0=new Date(de+'T00:00:00'), d1=new Date(ate+'T23:59:59'); const out=[];
+  clientesCredito().forEach(c=>(c.historico||[]).forEach(m=>{const d=parseBRDate(m.data);if(d&&d>=d0&&d<=d1)out.push({c,m,d,tipo:tipoMov(m.op)});}));
+  return out.sort((a,b)=>b.d-a.d);
+}
+function resumoCredito(){
+  const C=clientesCredito(); const dev=C.filter(c=>c.saldo<-0.005), cre=C.filter(c=>c.saldo>0.005);
+  const mov=movPeriodo(finDe,finAte); const soma=t=>mov.filter(x=>x.tipo===t).reduce((s,x)=>s+Math.abs(x.m.valor),0);
+  const faixas={'até 15 dias':0,'16 a 30 dias':0,'31 a 60 dias':0,'mais de 60 dias':0};
+  dev.forEach(c=>{const d=infoCliente(c).diasSemPagar??0;const k=d<=15?'até 15 dias':d<=30?'16 a 30 dias':d<=60?'31 a 60 dias':'mais de 60 dias';faixas[k]+=-c.saldo;});
+  return {dev,cre,devido:dev.reduce((s,c)=>s-c.saldo,0),prepago:cre.reduce((s,c)=>s+c.saldo,0),consumo:soma('consumo'),recebido:soma('recebido'),removido:soma('removido'),estorno:soma('estorno'),mov,faixas};
+}
+function secCredito(){
+  const R=resumoCredito(); const C=clientesCredito();
+  const q=crBusca.toLowerCase();
+  let lista=crFiltro==='devedores'?R.dev:crFiltro==='credito'?R.cre:C;
+  lista=lista.filter(c=>c.nome.toLowerCase().includes(q)).slice().sort((a,b)=>a.saldo-b.saldo);
+  if(crFiltro==='credito') lista.reverse();
+  const tot=Object.values(R.faixas).reduce((s,v)=>s+v,0);
+  return `<div class="kpis">
+    ${kpiM('Fiado em aberto (devem)',money(R.devido),R.dev.length+' cliente(s) com saldo negativo','var(--danger)')}
+    ${kpiM('Crédito pré-pago (saldo positivo)',money(R.prepago),R.cre.length+' cliente(s) com crédito','var(--money)')}
+    ${kpiM('Saldo geral dos clientes',money(R.prepago-R.devido),'positivo − negativo',R.prepago-R.devido<0?'var(--danger)':'')}
+    ${kpiM('Consumido no crédito',money(R.consumo),'no período')}
+    ${kpiM('Recebido / crédito adicionado',money(R.recebido),'no período','var(--money)')}
+    ${kpiM('Variação do fiado no período',money(R.recebido+R.estorno-R.consumo-R.removido),R.recebido>=R.consumo?'recebeu mais do que vendeu':'vendeu mais do que recebeu')}
+  </div>
+  <div class="fin-grid">
+    <div class="fin-box"><h4>Há quanto tempo estão sem pagar</h4>
+      ${Object.entries(R.faixas).map(([k,v])=>`<div class="fin-row" style="display:block"><div style="display:flex;justify-content:space-between"><span>${k}</span><b class="mono ${v&&k!=='até 15 dias'?'neg':''}">${money(v)}</b></div><div class="fin-bar"><i style="width:${tot?Math.max(2,v/tot*100):0}%;background:${k==='mais de 60 dias'?'var(--danger)':k==='31 a 60 dias'?'#d9773a':'#4a90e2'}"></i></div></div>`).join('')}
+      <div style="font-size:12px;color:var(--faint);margin-top:6px">Contado desde o último pagamento (crédito adicionado) de cada cliente.</div></div>
+    <div class="fin-box"><h4>Maiores devedores</h4>
+      ${R.dev.slice().sort((a,b)=>a.saldo-b.saldo).slice(0,8).map((c,i)=>`<div class="fin-row"><span><span class="itn">${i+1}</span>${esc(c.nome)}</span><b class="mono neg">${money(-c.saldo)}</b></div>`).join('')||'<div style="color:var(--faint);font-size:13px">Ninguém devendo ✓</div>'}</div>
+  </div>
+  <div class="fin-filtros" style="margin-bottom:10px">
+    ${[['devedores','Devendo ('+R.dev.length+')'],['credito','Com crédito ('+R.cre.length+')'],['todos','Todos ('+C.length+')']].map(f=>`<button class="chip ${crFiltro===f[0]?'on':''}" onclick="crFiltro='${f[0]}';renderFinanceiro()">${f[1]}</button>`).join('')}
+    <input class="finput" style="margin:0;max-width:240px;padding:8px 12px" id="crBuscaIn" placeholder="Buscar cliente…" value="${esc(crBusca)}" oninput="crBusca=this.value;renderFinanceiro();setTimeout(()=>{const i=document.getElementById('crBuscaIn');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},0)">
+    <div style="flex:1"></div>
+    <button class="btn gho" onclick="relatorioDevedores()">Imprimir devedores</button><button class="btn gho" onclick="exportarCredito()">Exportar Excel</button>
+  </div>
+  <div class="card" style="margin-bottom:14px"><table class="tbl"><thead><tr><th>Cliente</th><th class="right-num">Saldo</th><th>Último pagamento</th><th>Último consumo</th><th class="right-num">Dias sem pagar</th><th class="right-num"></th></tr></thead><tbody>
+    ${lista.map(c=>{const i=infoCliente(c);const d=i.diasSemPagar;return `<tr><td><b>${esc(c.nome)}</b></td>
+      <td class="right-num mono ${c.saldo<0?'neg':c.saldo>0?'pos':''}">${money(c.saldo)}</td>
+      <td class="mono" style="color:var(--muted)">${i.ultPag?brData(isoData(i.ultPag)):'—'}</td><td class="mono" style="color:var(--muted)">${i.ultCons?brData(isoData(i.ultCons)):'—'}</td>
+      <td class="right-num mono" style="${d>60?'color:var(--danger);font-weight:800':d>30?'color:#d9773a;font-weight:700':''}">${d===null?'—':d}</td>
+      <td class="right-num"><button class="btn gho" style="padding:6px 10px;font-size:12.5px" onclick="db.creditoClienteId='${c.id}';go('credito')">Abrir</button></td></tr>`;}).join('')
+      ||'<tr><td colspan="6" style="text-align:center;color:var(--faint);padding:30px">Nenhum cliente neste filtro</td></tr>'}
+  </tbody></table></div>
+  <div class="fin-box"><h4>Movimentações de crédito no período (${brData(finDe)} a ${brData(finAte)})</h4>
+    <div class="card" style="max-height:420px;overflow:auto"><table class="tbl"><thead><tr><th>Data</th><th>Cliente</th><th>Operação</th><th class="right-num">Valor</th></tr></thead><tbody>
+    ${R.mov.slice(0,500).map(x=>`<tr><td class="mono">${esc(x.m.data)}</td><td>${esc(x.c.nome)}</td><td style="color:var(--muted)">${esc(x.m.op)}${x.m.vendaNum?' #'+x.m.vendaNum:''}</td><td class="right-num mono ${x.m.valor<0?'neg':'pos'}">${money(x.m.valor)}</td></tr>`).join('')
+      ||'<tr><td colspan="4" style="text-align:center;color:var(--faint);padding:24px">Sem movimentações no período</td></tr>'}</tbody></table></div></div>`;
+}
+function exportarCredito(){
+  const C=clientesCredito().slice().sort((a,b)=>a.saldo-b.saldo);
+  const lin=[['Cliente','Saldo','Último pagamento','Último consumo','Dias sem pagar']].concat(C.map(c=>{const i=infoCliente(c);return [c.nome,String(r2(c.saldo)).replace('.',','),i.ultPag?brData(isoData(i.ultPag)):'',i.ultCons?brData(isoData(i.ultCons)):'',i.diasSemPagar??''];}));
+  lin.push([],['Movimentações '+brData(finDe)+' a '+brData(finAte)],['Data','Cliente','Operação','Valor']);
+  movPeriodo(finDe,finAte).forEach(x=>lin.push([x.m.data,x.c.nome,x.m.op,String(r2(x.m.valor)).replace('.',',')]));
+  const csv='﻿'+lin.map(r=>r.map(v=>/^-?\d+(,\d+)?$/.test(String(v))?v:'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='credito-clientes-'+isoHoje()+'.csv';a.click();toast('Planilha baixada','good');
+}
+/* registra na seção e no menu */
+const _renderFin8=renderFinanceiro;
+renderFinanceiro=function(){
+  _renderFin8();
+  if(finSecao==='credito'){const main=$('#finMain'); if(main) main.innerHTML=secCredito();}
+};
+const _badgeSecao8=badgeSecao;
+badgeSecao=function(k){if(k==='credito'){const n=clientesCredito().filter(c=>c.saldo<-0.005).length;return n?`<b class="nb">${n}</b>`:'';}return _badgeSecao8(k);};
+/* visão geral: cartões de fiado */
+const _renderFin8b=renderFinanceiro;
+renderFinanceiro=function(){
+  _renderFin8b();
+  if(finSecao!=='geral') return;
+  const R=resumoCredito(); if(!R.dev.length&&!R.cre.length) return;
+  const k=view.querySelector('.fin-main .kpis');
+  if(k) k.insertAdjacentHTML('beforeend',`<div class="kpi" style="cursor:pointer" onclick="finSecao='credito';renderFinanceiro()"><div class="l">Fiado em aberto (total hoje)</div><div class="v" style="color:var(--danger)">${money(R.devido)}</div><div class="h">${R.dev.length} cliente(s) devendo · ver detalhes</div></div>
+    <div class="kpi" style="cursor:pointer" onclick="finSecao='credito';renderFinanceiro()"><div class="l">Recebido de clientes (crédito)</div><div class="v" style="color:var(--money)">${money(R.recebido)}</div><div class="h">créditos adicionados no período</div></div>`);
+  const ar=[...view.querySelectorAll('.kpi')].find(x=>x.querySelector('.l').textContent==='A receber (fiado)');
+  if(ar){ar.querySelector('.l').textContent='Vendido no fiado (período)';}
 };
 
 /* ============ Start ============ */
