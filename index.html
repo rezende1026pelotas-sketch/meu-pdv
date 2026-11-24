@@ -929,6 +929,7 @@ function renderBalcao(){
         ${taxa>0?`<div class="totrow"><span>Taxa de entrega</span><span class="mono">${money(taxa)}</span></div>`:''}
         <div class="totrow big"><span class="lbl">Total</span><span class="val mono">${money(total)}</span></div>
       </div>
+      <button class="btn gho" style="width:100%;margin:2px 0 8px;font-weight:700" onclick="abrirValorAvulso()">+ Valor avulso · cobrança livre</button>
       <label style="display:flex;align-items:center;gap:8px;justify-content:center;margin:2px 0 8px;font-size:12.5px;color:var(--muted);cursor:pointer">
         <input type="checkbox" ${db.config.expressCheckout?'checked':''} onchange="db.config.expressCheckout=this.checked;store.save();toast(this.checked?'Modo fila ligado':'Modo fila desligado')" style="width:16px;height:16px;accent-color:var(--accent)">
         Modo fila · pagamento rápido
@@ -1001,6 +1002,33 @@ function chgQtd(ix,d){
 }
 function rmItem(ix){cart.splice(ix,1);syncMesa();renderBalcao()}
 function setDesconto(v){descontoPct=Math.max(0,Math.min(100,parseFloat(v)||0));renderBalcao()}
+
+/* ---- Valor avulso (cobrança livre, sem cadastrar produto) ---- */
+function ehAvulso(id){return String(id||'').startsWith('avulso');}
+function avAdd(v){const el=document.getElementById('avVal');const cur=parseFloat(String(el.value).replace(',','.'))||0;el.value=r2(cur+v).toFixed(2);avPreview();}
+function avPreview(){const el=document.getElementById('avPrev');if(!el)return;const val=parseFloat(String((document.getElementById('avVal')||{}).value).replace(',','.'))||0;el.textContent=money(val);}
+function abrirValorAvulso(){
+  openModal('Valor avulso · cobrança livre',`
+    <label class="fl" style="margin-top:0">Descrição (opcional)</label>
+    <input class="finput" id="avNome" placeholder="Ex.: Adicional de feijão, taxa, couvert…">
+    <label class="fl">Valor a cobrar (R$)</label>
+    <input class="finput mono" id="avVal" type="text" inputmode="decimal" placeholder="0,00" oninput="avPreview()" onkeydown="if(event.key==='Enter')doOk()" style="font-size:22px;text-align:right">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0">
+      ${[1,2,5,10,20,50].map(v=>`<button class="chip" onclick="avAdd(${v})">+${v}</button>`).join('')}
+      <button class="chip" onclick="document.getElementById('avVal').value='';avPreview()">limpar</button>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface2);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px">
+      <span style="color:var(--muted);font-size:13px">Vai entrar no carrinho</span><b class="mono" id="avPrev" style="font-size:20px">${money(0)}</b></div>
+    <p style="color:var(--faint);font-size:12px;margin:8px 0 0">Entra como um item do carrinho. Depois é só fechar no PAGAMENTO normal, com troco e tudo.</p>
+  `,()=>{
+    const val=parseFloat(String($('#avVal').value).replace(',','.'))||0;
+    if(!(val>0)){toast('Informe um valor maior que zero','bad');return false;}
+    const nome=$('#avNome').value.trim()||'Item avulso';
+    cart.push({id:'avulso-'+uid(),nome,preco:r2(val),qtd:1,obs:'',avulso:true});
+    syncMesa();renderBalcao();toast('Adicionado: '+nome+' · '+money(val),'good');
+  });
+  setTimeout(()=>{const i=document.getElementById('avVal');if(i)i.focus();},60);
+}
 
 /* pagamento */
 function openPagamento(){
@@ -5870,6 +5898,10 @@ sairModoAux=function(){
 /* ============ Start ============ */
 // Auth listener handles startup — see onAuthStateChanged above
 if(MODO==='qr') iniciarQR(); else showLoading('Conectando...');
+</script>
+
+<script>
+(function(){ if(typeof ehCozinha==='function'){ var _ehc=ehCozinha; window.ehCozinha=function(id){ if(ehAvulso(id)) return false; return _ehc(id); }; } })();
 </script>
 </body>
 </html>
